@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Label } from '../ui/label';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@coreflow.com');
+  const [password, setPassword] = useState('Admin123!');
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();

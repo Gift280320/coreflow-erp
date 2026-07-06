@@ -7,6 +7,35 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Department {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  managerId   String?
+  manager     User?    @relation("DepartmentManager", fields: [managerId], references: [id])
+  employees   Employee[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("departments")
+}
+
+model Employee {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  departmentId String
+  department  Department @relation(fields: [departmentId], references: [id])
+  jobTitle    String
+  hireDate    DateTime
+  salary      Float?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("employees")
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -27,6 +56,8 @@ model User {
   sessions      Session[]
   auditLogs     AuditLog[]
   notifications Notification[]
+  managedDepartments Department[] @relation("DepartmentManager")
+  employee      Employee?
 
   @@map("users")
 }

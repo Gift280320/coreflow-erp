@@ -3,24 +3,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '../lib/axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus, Search } from 'lucide-react';
 
 export default function Users() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [error, setError] = useState('');
+  const [roleId, setRoleId] = useState('');
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -41,10 +41,16 @@ export default function Users() {
       if (user.id) return axios.put(`/api/users/${user.id}`, user);
       return axios.post('/api/users', user);
     },
+    onError: (err: any) => {
+      console.error('Save error:', err);
+      setError(err.response?.data?.message || 'Save failed');
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsDialogOpen(false);
       setSelectedUser(null);
+      setRoleId('');
+      setError('');
     },
   });
 
@@ -54,12 +60,16 @@ export default function Users() {
 
   const handleEdit = (user: any) => {
     setSelectedUser(user);
+    setRoleId(user.roleId);
     setIsDialogOpen(true);
+    setError('');
   };
 
   const handleCreate = () => {
     setSelectedUser({});
+    setRoleId('');
     setIsDialogOpen(true);
+    setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -70,10 +80,11 @@ export default function Users() {
       email: form.email.value,
       firstName: form.firstName.value,
       lastName: form.lastName.value,
-      roleId: form.roleId.value,
-      companyId: '48723c41-5ff5-4ab5-8dec-8b741f676a97', // Replace with your actual company ID
+      roleId: roleId,
+      companyId: 'bd528d11-d056-4a42-8ea3-b4248ab6b2ac',
       password: form.password?.value || 'Temp123!',
     };
+    console.log('Submitting user data:', data);
     saveMutation.mutate(data);
   };
 
@@ -112,7 +123,7 @@ export default function Users() {
                 <TableRow key={user.id}>
                   <TableCell>{user.firstName} {user.lastName}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.role.name}</TableCell>
+                  <TableCell>{user.role?.name || 'N/A'}</TableCell>
                   <TableCell>{user.isActive ? 'Active' : 'Inactive'}</TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}>
@@ -156,14 +167,17 @@ export default function Users() {
             </div>
             <div>
               <Label htmlFor="roleId">Role</Label>
-              <Select name="roleId" defaultValue={selectedUser?.roleId || ''}>
-                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="c3e43c1c-4946-46dc-a5e2-9cf52c649aba">SuperAdmin</SelectItem>
-                  <SelectItem value="364c3ce5-7c4c-4bac-bf89-555a66ea74b5">CompanyAdmin</SelectItem>
-                  <SelectItem value="844d942f-cfa7-4ddf-8047-f9dbed524974">HR</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                id="roleId"
+                className="w-full border rounded-md px-3 py-2"
+                value={roleId}
+                onChange={(e) => setRoleId(e.target.value)}
+              >
+                <option value="">Select role</option>
+                <option value="eeb973e4-2daf-4cc5-9147-f1b633e85b38">SuperAdmin</option>
+                <option value="66d4641c-b959-48f2-9ef6-be63ebf67841">CompanyAdmin</option>
+                <option value="3c490b8f-65e2-4968-a775-21bc3020a766">HR</option>
+              </select>
             </div>
             {!selectedUser?.id && (
               <div>
@@ -171,6 +185,7 @@ export default function Users() {
                 <Input id="password" name="password" type="password" placeholder="Temp123!" />
               </div>
             )}
+            {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" disabled={saveMutation.isPending}>
               {saveMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
@@ -180,4 +195,3 @@ export default function Users() {
     </div>
   );
 }
-

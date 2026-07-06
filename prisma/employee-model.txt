@@ -1,0 +1,15 @@
+﻿model Employee {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  departmentId String
+  department  Department @relation(fields: [departmentId], references: [id])
+  jobTitle    String
+  hireDate    DateTime
+  salary      Float?
+  status      String   @default("active") // active, inactive, terminated
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("employees")
+}

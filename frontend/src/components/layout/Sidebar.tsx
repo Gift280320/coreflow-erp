@@ -3,6 +3,7 @@ import { LayoutDashboard, Users, Building, Package, ShoppingCart, FileText, Sett
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { name: 'Employees', icon: Users, path: '/employees' },
   { name: 'Users', icon: Users, path: '/users' },
   { name: 'Departments', icon: Building, path: '/departments' },
   { name: 'Inventory', icon: Package, path: '/inventory' },
@@ -32,3 +33,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+
