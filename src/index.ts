@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import departmentRoutes from './routes/departments';
+import employeeRoutes from './routes/employees';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -22,8 +23,9 @@ app.use(cookieParser());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/departments', departmentRoutes);
+app.use('/api/employees', employeeRoutes);
 
 app.use(errorHandler);
 
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
-

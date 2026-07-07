@@ -20,7 +20,6 @@ export default function Users() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [error, setError] = useState('');
-  const [roleId, setRoleId] = useState('');
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -49,7 +48,6 @@ export default function Users() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsDialogOpen(false);
       setSelectedUser(null);
-      setRoleId('');
       setError('');
     },
   });
@@ -60,14 +58,12 @@ export default function Users() {
 
   const handleEdit = (user: any) => {
     setSelectedUser(user);
-    setRoleId(user.roleId);
     setIsDialogOpen(true);
     setError('');
   };
 
   const handleCreate = () => {
     setSelectedUser({});
-    setRoleId('');
     setIsDialogOpen(true);
     setError('');
   };
@@ -75,14 +71,16 @@ export default function Users() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
+    // Read all values directly from the form
+    const formData = new FormData(form);
     const data = {
       id: selectedUser?.id,
-      email: form.email.value,
-      firstName: form.firstName.value,
-      lastName: form.lastName.value,
-      roleId: roleId,
-      companyId: 'bd528d11-d056-4a42-8ea3-b4248ab6b2ac',
-      password: form.password?.value || 'Temp123!',
+      email: formData.get('email') as string,
+      firstName: formData.get('firstName') as string,
+      lastName: formData.get('lastName') as string,
+      roleId: formData.get('roleId') as string,
+      companyId: '48723c41-5ff5-4ab5-8dec-8b741f676a97',
+      password: (formData.get('password') as string) || 'Temp123!',
     };
     console.log('Submitting user data:', data);
     saveMutation.mutate(data);
@@ -169,14 +167,14 @@ export default function Users() {
               <Label htmlFor="roleId">Role</Label>
               <select
                 id="roleId"
+                name="roleId"
+                defaultValue={selectedUser?.roleId || ''}
                 className="w-full border rounded-md px-3 py-2"
-                value={roleId}
-                onChange={(e) => setRoleId(e.target.value)}
               >
                 <option value="">Select role</option>
-                <option value="eeb973e4-2daf-4cc5-9147-f1b633e85b38">SuperAdmin</option>
-                <option value="66d4641c-b959-48f2-9ef6-be63ebf67841">CompanyAdmin</option>
-                <option value="3c490b8f-65e2-4968-a775-21bc3020a766">HR</option>
+                <option value="c3e43c1c-4946-46dc-a5e2-9cf52c649aba">SuperAdmin</option>
+                <option value="364c3ce5-7c4c-4bac-bf89-555a66ea74b5">CompanyAdmin</option>
+                <option value="844d942f-cfa7-4ddf-8047-f9dbed524974">HR</option>
               </select>
             </div>
             {!selectedUser?.id && (
