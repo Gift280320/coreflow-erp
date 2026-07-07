@@ -30,9 +30,9 @@ export const getEmployees = async (req: Request, res: Response) => {
     ]);
 
     res.json({ data: employees, total, page: Number(page), limit: Number(limit) });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching employees:', error);
-    res.status(500).json({ message: 'Failed to fetch employees' });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -45,36 +45,36 @@ export const getEmployee = async (req: Request, res: Response) => {
     });
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
     res.json(employee);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching employee:', error);
-    res.status(500).json({ message: 'Failed to fetch employee' });
+    res.status(500).json({ error: error.message });
   }
 };
 
 export const createEmployee = async (req: Request, res: Response) => {
   try {
     const { userId, departmentId, jobTitle, hireDate, salary, status } = req.body;
+    // Validate required fields
+    if (!userId || !departmentId || !jobTitle || !hireDate) {
+      return res.status(400).json({ message: 'Missing required fields: userId, departmentId, jobTitle, hireDate' });
+    }
+    // Convert empty string salary to null
+    const salaryValue = salary && salary !== '' ? parseFloat(salary) : null;
     const employee = await prisma.employee.create({
       data: {
         userId,
         departmentId,
         jobTitle,
         hireDate: new Date(hireDate),
-        salary: salary ? parseFloat(salary) : null,
+        salary: salaryValue,
         status: status || 'active',
       },
       include: { user: true, department: true },
     });
     res.status(201).json(employee);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating employee:', error);
-    if (error.code === 'P2002') {
-      return res.status(400).json({ message: 'User already has an employee record' });
-    }
-    if (error.code === 'P2003') {
-      return res.status(400).json({ message: 'Invalid user or department ID' });
-    }
-    res.status(500).json({ message: 'Failed to create employee' });
+    res.status(500).json({ error: error.message, code: error.code });
   }
 };
 
@@ -82,24 +82,22 @@ export const updateEmployee = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { departmentId, jobTitle, hireDate, salary, status } = req.body;
+    const salaryValue = salary && salary !== '' ? parseFloat(salary) : null;
     const employee = await prisma.employee.update({
       where: { id },
       data: {
         departmentId,
         jobTitle,
         hireDate: new Date(hireDate),
-        salary: salary ? parseFloat(salary) : null,
+        salary: salaryValue,
         status,
       },
       include: { user: true, department: true },
     });
     res.json(employee);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating employee:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: 'Employee not found' });
-    }
-    res.status(500).json({ message: 'Failed to update employee' });
+    res.status(500).json({ error: error.message, code: error.code });
   }
 };
 
@@ -108,11 +106,8 @@ export const deleteEmployee = async (req: Request, res: Response) => {
     const { id } = req.params;
     await prisma.employee.delete({ where: { id } });
     res.status(204).send();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting employee:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: 'Employee not found' });
-    }
-    res.status(500).json({ message: 'Failed to delete employee' });
+    res.status(500).json({ error: error.message, code: error.code });
   }
 };

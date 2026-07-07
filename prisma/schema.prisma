@@ -33,6 +33,8 @@ model Employee {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  leaveRequests LeaveRequest[]
+
   @@map("employees")
 }
 
@@ -60,6 +62,39 @@ model User {
   employee      Employee?
 
   @@map("users")
+}
+
+model LeaveType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  daysPerYear Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requests    LeaveRequest[]
+
+  @@map("leave_types")
+}
+
+model LeaveRequest {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  leaveTypeId   String
+  leaveType     LeaveType @relation(fields: [leaveTypeId], references: [id])
+  startDate     DateTime
+  endDate       DateTime
+  days          Float
+  reason        String?
+  status        String   @default("pending")
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("leave_requests")
 }
 
 model Role {

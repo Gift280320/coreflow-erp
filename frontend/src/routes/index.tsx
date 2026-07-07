@@ -4,6 +4,8 @@ import Dashboard from '../pages/Dashboard';
 import Users from '../pages/Users';
 import Departments from '../pages/Departments';
 import Employees from '../pages/Employees';
+import LeaveTypes from '../pages/LeaveTypes';
+import LeaveRequests from '../pages/LeaveRequests';
 import Login from '../components/auth/Login';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
@@ -23,8 +25,12 @@ export const router = createBrowserRouter([
           { path: '/users', element: <Users /> },
           { path: '/departments', element: <Departments /> },
           { path: '/employees', element: <Employees /> },
+          { path: '/leave-types', element: <LeaveTypes /> },
+          { path: '/leave-requests', element: <LeaveRequests /> },
         ],
       },
     ],
   },
 ]);
+
+
