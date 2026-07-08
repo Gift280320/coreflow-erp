@@ -1,12 +1,16 @@
 ﻿import { Link } from 'react-router-dom';
-import { LayoutDashboard, Users, Building, Package, ShoppingCart, FileText, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Package, ShoppingCart, FileText, Settings, UserCog, Clock, Calendar } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
-  { name: 'Employees', icon: Users, path: '/employees' },
-  { name: 'Leave Management', icon: FileText, path: '/leave-types' },
   { name: 'Users', icon: Users, path: '/users' },
   { name: 'Departments', icon: Building, path: '/departments' },
+  { name: 'Employees', icon: UserCog, path: '/employees' },
+  { name: 'Leave Types', icon: Calendar, path: '/leave-types' },
+  { name: 'Leave Requests', icon: FileText, path: '/leave-requests' },
+  { name: 'Suppliers', icon: ShoppingCart, path: '/suppliers' },
+  { name: 'Purchase Requests', icon: FileText, path: '/purchase-requests' },
+  { name: 'Purchase Orders', icon: ShoppingCart, path: '/purchase-orders' },
   { name: 'Inventory', icon: Package, path: '/inventory' },
   { name: 'Procurement', icon: ShoppingCart, path: '/procurement' },
   { name: 'Reports', icon: FileText, path: '/reports' },
@@ -34,6 +38,8 @@ export default function Sidebar() {
     </aside>
   );
 }
+
+
 
 
 

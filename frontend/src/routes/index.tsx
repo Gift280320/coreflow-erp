@@ -6,6 +6,9 @@ import Departments from '../pages/Departments';
 import Employees from '../pages/Employees';
 import LeaveTypes from '../pages/LeaveTypes';
 import LeaveRequests from '../pages/LeaveRequests';
+import Suppliers from '../pages/Suppliers';
+import PurchaseRequests from '../pages/PurchaseRequests';
+import PurchaseOrders from '../pages/PurchaseOrders';
 import Login from '../components/auth/Login';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
@@ -27,10 +30,17 @@ export const router = createBrowserRouter([
           { path: '/employees', element: <Employees /> },
           { path: '/leave-types', element: <LeaveTypes /> },
           { path: '/leave-requests', element: <LeaveRequests /> },
-        ],
+          { path: '/suppliers', element: <Suppliers /> },
+          { path: '/purchase-requests', element: <PurchaseRequests /> },
+          { path: '/purchase-orders', element: <PurchaseOrders /> },
+                            ],
       },
     ],
   },
 ]);
+
+
+
+
 
 
