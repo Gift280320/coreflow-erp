@@ -1,5 +1,4 @@
 ﻿import { useState } from 'react';
-import { useDebounce } from '../hooks/useDebounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '../lib/axios';
 import { Button } from '../components/ui/button';
@@ -15,44 +14,38 @@ import {
 import { Label } from '../components/ui/label';
 import { Pencil, Trash2, Plus, Search } from 'lucide-react';
 
-export default function Suppliers() {
+export default function Customers() {
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 400);
-  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [error, setError] = useState('');
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['suppliers', debouncedSearch],
+    queryKey: ['customers', search],
     queryFn: async () => {
-      const res = await axios.get('/api/suppliers');
-      let suppliers = res.data;
-      if (debouncedSearch) {
-        suppliers = suppliers.filter((s: any) =>
-          s.name.toLowerCase().includes(search.toLowerCase()) ||
-          (s.email && s.email.toLowerCase().includes(search.toLowerCase()))
-        );
-      }
-      return suppliers;
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      const res = await axios.get(`/api/customers?${params.toString()}`);
+      return res.data;
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => axios.delete(`/api/suppliers/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
+    mutationFn: (id: string) => axios.delete(`/api/customers/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customers'] }),
   });
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => {
-      if (data.id) return axios.put(`/api/suppliers/${data.id}`, data);
-      return axios.post('/api/suppliers', data);
+      if (data.id) return axios.put(`/api/customers/${data.id}`, data);
+      return axios.post('/api/customers', data);
     },
-    onError: (err: any) => setError(err.response?.data?.message || 'Save failed'),
+    onError: (err: any) => setError(err.response?.data?.error || err.response?.data?.message || 'Save failed'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       setIsDialogOpen(false);
-      setSelectedSupplier(null);
+      setSelectedCustomer(null);
       setError('');
     },
   });
@@ -61,14 +54,14 @@ export default function Suppliers() {
     if (confirm('Are you sure?')) deleteMutation.mutate(id);
   };
 
-  const handleEdit = (supplier: any) => {
-    setSelectedSupplier(supplier);
+  const handleEdit = (customer: any) => {
+    setSelectedCustomer(customer);
     setIsDialogOpen(true);
     setError('');
   };
 
   const handleCreate = () => {
-    setSelectedSupplier({});
+    setSelectedCustomer({});
     setIsDialogOpen(true);
     setError('');
   };
@@ -77,9 +70,8 @@ export default function Suppliers() {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const data = {
-      id: selectedSupplier?.id,
+      id: selectedCustomer?.id,
       name: form.name.value,
-      contactPerson: form.contactPerson.value || null,
       email: form.email.value || null,
       phone: form.phone.value || null,
       address: form.address.value || null,
@@ -93,13 +85,13 @@ export default function Suppliers() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Suppliers</h1>
-        <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> Add Supplier</Button>
+        <h1 className="text-2xl font-bold">Customers</h1>
+        <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> Add Customer</Button>
       </div>
 
       <div className="mb-4">
         <Input
-          placeholder="Search suppliers..."
+          placeholder="Search customers..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -112,7 +104,6 @@ export default function Suppliers() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Contact Person</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Status</TableHead>
@@ -120,18 +111,17 @@ export default function Suppliers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.map((supplier: any) => (
-                <TableRow key={supplier.id}>
-                  <TableCell>{supplier.name}</TableCell>
-                  <TableCell>{supplier.contactPerson || '-'}</TableCell>
-                  <TableCell>{supplier.email || '-'}</TableCell>
-                  <TableCell>{supplier.phone || '-'}</TableCell>
-                  <TableCell>{supplier.isActive ? 'Active' : 'Inactive'}</TableCell>
+              {data?.data.map((customer: any) => (
+                <TableRow key={customer.id}>
+                  <TableCell>{customer.name}</TableCell>
+                  <TableCell>{customer.email || '-'}</TableCell>
+                  <TableCell>{customer.phone || '-'}</TableCell>
+                  <TableCell>{customer.isActive ? 'Active' : 'Inactive'}</TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(supplier)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(customer)}>
                       <Pencil className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(supplier.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(customer.id)}>
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
                   </TableCell>
@@ -145,33 +135,29 @@ export default function Suppliers() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{selectedSupplier?.id ? 'Edit Supplier' : 'Create Supplier'}</DialogTitle>
+            <DialogTitle>{selectedCustomer?.id ? 'Edit Customer' : 'Create Customer'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input type="hidden" name="id" value={selectedSupplier?.id || ''} />
+            <input type="hidden" name="id" value={selectedCustomer?.id || ''} />
             <div>
               <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" defaultValue={selectedSupplier?.name || ''} required />
-            </div>
-            <div>
-              <Label htmlFor="contactPerson">Contact Person</Label>
-              <Input id="contactPerson" name="contactPerson" defaultValue={selectedSupplier?.contactPerson || ''} />
+              <Input id="name" name="name" defaultValue={selectedCustomer?.name || ''} required />
             </div>
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" defaultValue={selectedSupplier?.email || ''} />
+              <Input id="email" name="email" type="email" defaultValue={selectedCustomer?.email || ''} />
             </div>
             <div>
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" name="phone" defaultValue={selectedSupplier?.phone || ''} />
+              <Input id="phone" name="phone" defaultValue={selectedCustomer?.phone || ''} />
             </div>
             <div>
               <Label htmlFor="address">Address</Label>
-              <Input id="address" name="address" defaultValue={selectedSupplier?.address || ''} />
+              <Input id="address" name="address" defaultValue={selectedCustomer?.address || ''} />
             </div>
             <div>
               <Label htmlFor="taxId">Tax ID</Label>
-              <Input id="taxId" name="taxId" defaultValue={selectedSupplier?.taxId || ''} />
+              <Input id="taxId" name="taxId" defaultValue={selectedCustomer?.taxId || ''} />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" disabled={saveMutation.isPending}>{saveMutation.isPending ? 'Saving...' : 'Save'}</Button>
@@ -181,4 +167,3 @@ export default function Suppliers() {
     </div>
   );
 }
-

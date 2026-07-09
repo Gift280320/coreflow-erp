@@ -13,11 +13,6 @@ import leaveRequestRoutes from './routes/leaveRequests';
 import supplierRoutes from './routes/suppliers';
 import purchaseRequestRoutes from './routes/purchaseRequests';
 import purchaseOrderRoutes from './routes/purchaseOrders';
-import productRoutes from './routes/products';
-import warehouseRoutes from './routes/warehouses';
-import stockRoutes from './routes/stock';
-import customerRoutes from './routes/customers';
-import invoiceRoutes from './routes/invoices';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -40,12 +35,7 @@ app.use('/api/leave-requests', leaveRequestRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/purchase-requests', purchaseRequestRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/warehouses', warehouseRoutes);
-app.use('/api/stock', stockRoutes);
-app.use('/api/customers', customerRoutes);
 
 app.use(errorHandler);
 
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
-

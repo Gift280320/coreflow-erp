@@ -15,44 +15,39 @@ import {
 import { Label } from '../components/ui/label';
 import { Pencil, Trash2, Plus, Search } from 'lucide-react';
 
-export default function Suppliers() {
+export default function Products() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 400);
-  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [error, setError] = useState('');
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['suppliers', debouncedSearch],
+    queryKey: ['products', debouncedSearch],
     queryFn: async () => {
-      const res = await axios.get('/api/suppliers');
-      let suppliers = res.data;
-      if (debouncedSearch) {
-        suppliers = suppliers.filter((s: any) =>
-          s.name.toLowerCase().includes(search.toLowerCase()) ||
-          (s.email && s.email.toLowerCase().includes(search.toLowerCase()))
-        );
-      }
-      return suppliers;
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      const res = await axios.get(`/api/products?${params.toString()}`);
+      return res.data;
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => axios.delete(`/api/suppliers/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
+    mutationFn: (id: string) => axios.delete(`/api/products/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products'] }),
   });
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => {
-      if (data.id) return axios.put(`/api/suppliers/${data.id}`, data);
-      return axios.post('/api/suppliers', data);
+      if (data.id) return axios.put(`/api/products/${data.id}`, data);
+      return axios.post('/api/products', data);
     },
-    onError: (err: any) => setError(err.response?.data?.message || 'Save failed'),
+    onError: (err: any) => setError(err.response?.data?.error || err.response?.data?.message || 'Save failed'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       setIsDialogOpen(false);
-      setSelectedSupplier(null);
+      setSelectedProduct(null);
       setError('');
     },
   });
@@ -61,14 +56,14 @@ export default function Suppliers() {
     if (confirm('Are you sure?')) deleteMutation.mutate(id);
   };
 
-  const handleEdit = (supplier: any) => {
-    setSelectedSupplier(supplier);
+  const handleEdit = (product: any) => {
+    setSelectedProduct(product);
     setIsDialogOpen(true);
     setError('');
   };
 
   const handleCreate = () => {
-    setSelectedSupplier({});
+    setSelectedProduct({});
     setIsDialogOpen(true);
     setError('');
   };
@@ -77,13 +72,12 @@ export default function Suppliers() {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const data = {
-      id: selectedSupplier?.id,
+      id: selectedProduct?.id,
       name: form.name.value,
-      contactPerson: form.contactPerson.value || null,
-      email: form.email.value || null,
-      phone: form.phone.value || null,
-      address: form.address.value || null,
-      taxId: form.taxId.value || null,
+      sku: form.sku.value,
+      description: form.description.value || null,
+      category: form.category.value || null,
+      unitPrice: parseFloat(form.unitPrice.value) || 0,
     };
     saveMutation.mutate(data);
   };
@@ -93,13 +87,13 @@ export default function Suppliers() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Suppliers</h1>
-        <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> Add Supplier</Button>
+        <h1 className="text-2xl font-bold">Products</h1>
+        <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> Add Product</Button>
       </div>
 
       <div className="mb-4">
         <Input
-          placeholder="Search suppliers..."
+          placeholder="Search products by name or SKU..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -112,26 +106,26 @@ export default function Suppliers() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Contact Person</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Unit Price</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.map((supplier: any) => (
-                <TableRow key={supplier.id}>
-                  <TableCell>{supplier.name}</TableCell>
-                  <TableCell>{supplier.contactPerson || '-'}</TableCell>
-                  <TableCell>{supplier.email || '-'}</TableCell>
-                  <TableCell>{supplier.phone || '-'}</TableCell>
-                  <TableCell>{supplier.isActive ? 'Active' : 'Inactive'}</TableCell>
+              {data?.data.map((product: any) => (
+                <TableRow key={product.id}>
+                  <TableCell>{product.name}</TableCell>
+                  <TableCell>{product.sku}</TableCell>
+                  <TableCell>{product.category || '-'}</TableCell>
+                  <TableCell>${product.unitPrice}</TableCell>
+                  <TableCell>{product.isActive ? 'Active' : 'Inactive'}</TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(supplier)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(product)}>
                       <Pencil className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(supplier.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(product.id)}>
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
                   </TableCell>
@@ -145,33 +139,29 @@ export default function Suppliers() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{selectedSupplier?.id ? 'Edit Supplier' : 'Create Supplier'}</DialogTitle>
+            <DialogTitle>{selectedProduct?.id ? 'Edit Product' : 'Create Product'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input type="hidden" name="id" value={selectedSupplier?.id || ''} />
+            <input type="hidden" name="id" value={selectedProduct?.id || ''} />
             <div>
               <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" defaultValue={selectedSupplier?.name || ''} required />
+              <Input id="name" name="name" defaultValue={selectedProduct?.name || ''} required />
             </div>
             <div>
-              <Label htmlFor="contactPerson">Contact Person</Label>
-              <Input id="contactPerson" name="contactPerson" defaultValue={selectedSupplier?.contactPerson || ''} />
+              <Label htmlFor="sku">SKU (unique)</Label>
+              <Input id="sku" name="sku" defaultValue={selectedProduct?.sku || ''} required />
             </div>
             <div>
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" defaultValue={selectedSupplier?.email || ''} />
+              <Label htmlFor="description">Description</Label>
+              <Input id="description" name="description" defaultValue={selectedProduct?.description || ''} />
             </div>
             <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" name="phone" defaultValue={selectedSupplier?.phone || ''} />
+              <Label htmlFor="category">Category</Label>
+              <Input id="category" name="category" defaultValue={selectedProduct?.category || ''} />
             </div>
             <div>
-              <Label htmlFor="address">Address</Label>
-              <Input id="address" name="address" defaultValue={selectedSupplier?.address || ''} />
-            </div>
-            <div>
-              <Label htmlFor="taxId">Tax ID</Label>
-              <Input id="taxId" name="taxId" defaultValue={selectedSupplier?.taxId || ''} />
+              <Label htmlFor="unitPrice">Unit Price</Label>
+              <Input id="unitPrice" name="unitPrice" type="number" step="0.01" defaultValue={selectedProduct?.unitPrice || 0} required />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" disabled={saveMutation.isPending}>{saveMutation.isPending ? 'Saving...' : 'Save'}</Button>

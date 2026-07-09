@@ -3,14 +3,12 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Helper: generate order number like PO-20250101-001
 async function generateOrderNumber(): Promise<string> {
   const now = new Date();
   const dateStr = now.getFullYear() +
     String(now.getMonth() + 1).padStart(2, '0') +
     String(now.getDate()).padStart(2, '0');
   const prefix = `PO-${dateStr}-`;
-  // Find the last order with today's prefix
   const lastOrder = await prisma.purchaseOrder.findFirst({
     where: { orderNumber: { startsWith: prefix } },
     orderBy: { orderNumber: 'desc' },
@@ -49,30 +47,50 @@ export const getPurchaseOrders = async (req: Request, res: Response) => {
 
 export const createPurchaseOrder = async (req: Request, res: Response) => {
   try {
-    console.log('Received purchase order data:', req.body);
+    console.log('📦 Received purchase order data:', req.body);
     let { supplierId, purchaseRequestId, orderNumber, orderDate, totalAmount, status } = req.body;
-    // Auto-generate order number if not provided
+    // Auto-generate order number if not provided or empty
     if (!orderNumber || orderNumber.trim() === '') {
       orderNumber = await generateOrderNumber();
-      console.log('Auto-generated order number:', orderNumber);
+      console.log('✅ Auto-generated order number:', orderNumber);
     }
-    if (!supplierId || !totalAmount) {
-      return res.status(400).json({ error: 'supplierId and totalAmount are required' });
+    // Validate required fields
+    if (!supplierId) {
+      return res.status(400).json({ error: 'supplierId is required' });
+    }
+    if (!totalAmount || isNaN(parseFloat(totalAmount))) {
+      return res.status(400).json({ error: 'totalAmount must be a valid number' });
     }
     // Convert empty purchaseRequestId to null
     const prId = purchaseRequestId && purchaseRequestId.trim() !== '' ? purchaseRequestId : null;
+    const total = parseFloat(totalAmount);
+    // Check supplier exists
+    const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
+    if (!supplier) {
+      return res.status(404).json({ error: `Supplier with ID ${supplierId} not found.` });
+    }
+    // If linking to a purchase request, verify it exists and is approved
+    if (prId) {
+      const pr = await prisma.purchaseRequest.findUnique({ where: { id: prId } });
+      if (!pr) {
+        return res.status(404).json({ error: `Purchase request ${prId} not found.` });
+      }
+      if (pr.status !== 'approved') {
+        return res.status(400).json({ error: 'Only approved purchase requests can be linked.' });
+      }
+    }
     const order = await prisma.purchaseOrder.create({
       data: {
         supplierId,
         purchaseRequestId: prId,
         orderNumber,
         orderDate: orderDate ? new Date(orderDate) : new Date(),
-        totalAmount: parseFloat(totalAmount),
+        totalAmount: total,
         status: status || 'draft',
       },
       include: { supplier: true, purchaseRequest: true },
     });
-    // If linked to a purchase request, update its status to 'ordered'
+    // Update purchase request status if linked
     if (prId) {
       await prisma.purchaseRequest.update({
         where: { id: prId },
@@ -81,12 +99,17 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
     }
     res.status(201).json(order);
   } catch (error: any) {
-    console.error('Error creating purchase order:', error);
+    console.error('❌ Error creating purchase order:', error);
     // Handle duplicate order number
     if (error.code === 'P2002' && error.meta?.target?.includes('orderNumber')) {
       return res.status(400).json({ error: 'Order number already exists. Please use a unique number or leave blank to auto-generate.' });
     }
-    res.status(500).json({ error: error.message, code: error.code });
+    // Send detailed error to frontend
+    res.status(500).json({
+      error: error.message,
+      code: error.code,
+      meta: error.meta,
+    });
   }
 };
 

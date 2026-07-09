@@ -9,6 +9,11 @@ import LeaveRequests from '../pages/LeaveRequests';
 import Suppliers from '../pages/Suppliers';
 import PurchaseRequests from '../pages/PurchaseRequests';
 import PurchaseOrders from '../pages/PurchaseOrders';
+import Products from '../pages/Products';
+import Warehouses from '../pages/Warehouses';
+import Stock from '../pages/Stock';
+import Customers from '../pages/Customers';
+import Invoices from '../pages/Invoices';
 import Login from '../components/auth/Login';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
@@ -33,11 +38,20 @@ export const router = createBrowserRouter([
           { path: '/suppliers', element: <Suppliers /> },
           { path: '/purchase-requests', element: <PurchaseRequests /> },
           { path: '/purchase-orders', element: <PurchaseOrders /> },
+          { path: '/products', element: <Products /> },
+          { path: '/warehouses', element: <Warehouses /> },
+          { path: '/stock', element: <Stock /> },
+          { path: '/customers', element: <Customers /> },
+          { path: '/invoices', element: <Invoices /> },
                             ],
       },
     ],
   },
 ]);
+
+
+
+
 
 
 

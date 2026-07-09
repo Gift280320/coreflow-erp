@@ -11,6 +11,11 @@ const navItems = [
   { name: 'Suppliers', icon: ShoppingCart, path: '/suppliers' },
   { name: 'Purchase Requests', icon: FileText, path: '/purchase-requests' },
   { name: 'Purchase Orders', icon: ShoppingCart, path: '/purchase-orders' },
+  { name: 'Products', icon: Package, path: '/products' },
+  { name: 'Warehouses', icon: Building, path: '/warehouses' },
+  { name: 'Stock', icon: Package, path: '/stock' },
+  { name: 'Customers', icon: Users, path: '/customers' },
+  { name: 'Invoices', icon: FileText, path: '/invoices' },
   { name: 'Inventory', icon: Package, path: '/inventory' },
   { name: 'Procurement', icon: ShoppingCart, path: '/procurement' },
   { name: 'Reports', icon: FileText, path: '/reports' },
@@ -38,6 +43,10 @@ export default function Sidebar() {
     </aside>
   );
 }
+
+
+
+
 
 
 
