@@ -44,8 +44,8 @@ app.use('/api/products', productRoutes);
 app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 app.use(errorHandler);
 
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
-
