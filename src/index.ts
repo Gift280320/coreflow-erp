@@ -18,6 +18,10 @@ import warehouseRoutes from './routes/warehouses';
 import stockRoutes from './routes/stock';
 import customerRoutes from './routes/customers';
 import invoiceRoutes from './routes/invoices';
+import paymentRoutes from './routes/payments';
+import accountRoutes from './routes/accounts';
+import expenseRoutes from './routes/expenses';
+import budgetRoutes from './routes/budgets';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -45,6 +49,10 @@ app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/budgets', budgetRoutes);
 
 app.use(errorHandler);
 

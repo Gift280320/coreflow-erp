@@ -14,6 +14,10 @@ import Warehouses from '../pages/Warehouses';
 import Stock from '../pages/Stock';
 import Customers from '../pages/Customers';
 import Invoices from '../pages/Invoices';
+import Payments from '../pages/Payments';
+import Accounts from '../pages/Accounts';
+import Expenses from '../pages/Expenses';
+import Budgets from '../pages/Budgets';
 import Login from '../components/auth/Login';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
@@ -43,11 +47,25 @@ export const router = createBrowserRouter([
           { path: '/stock', element: <Stock /> },
           { path: '/customers', element: <Customers /> },
           { path: '/invoices', element: <Invoices /> },
+          { path: '/payments', element: <Payments /> },
+          { path: '/accounts', element: <Accounts /> },
+          { path: '/expenses', element: <Expenses /> },
+          { path: '/budgets', element: <Budgets /> },
+          { path: '/budgets', element: <Budgets /> },
                             ],
       },
     ],
   },
 ]);
+
+
+
+
+
+
+
+
+
 
 
 
