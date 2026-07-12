@@ -25,7 +25,7 @@ export default function Payments() {
     queryKey: ['invoices-list'],
     queryFn: async () => {
       const res = await axios.get('/api/invoices?limit=1000');
-      return res.data.data || [];
+      return res.data.data;
     },
   });
 
@@ -35,7 +35,7 @@ export default function Payments() {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       const res = await axios.get(`/api/payments?${params.toString()}`);
-      return res.data || { data: [], total: 0 };
+      return res.data;
     },
   });
 
@@ -83,10 +83,10 @@ export default function Payments() {
     saveMutation.mutate(data);
   };
 
-  if (isLoading) return <div className="p-8 text-center">Loading payments...</div>;
+  if (isLoading) return <div>Loading...</div>;
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Payments</h1>
         <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> Record Payment</Button>
@@ -116,7 +116,7 @@ export default function Payments() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.data?.map((payment: any) => (
+              {data?.data.map((payment: any) => (
                 <TableRow key={payment.id}>
                   <TableCell>{payment.invoice?.invoiceNumber}</TableCell>
                   <TableCell>{payment.customer?.name}</TableCell>

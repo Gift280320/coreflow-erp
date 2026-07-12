@@ -22,6 +22,9 @@ import paymentRoutes from './routes/payments';
 import accountRoutes from './routes/accounts';
 import expenseRoutes from './routes/expenses';
 import budgetRoutes from './routes/budgets';
+import assetRoutes from './routes/assets';
+import reportRoutes from './routes/reports';
+import projectRoutes from './routes/projects';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -53,6 +56,9 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/budgets', budgetRoutes);
+app.use('/api/assets', assetRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/projects', projectRoutes);
 
 app.use(errorHandler);
 

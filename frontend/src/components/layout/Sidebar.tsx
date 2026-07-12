@@ -1,5 +1,20 @@
 ﻿import { Link } from 'react-router-dom';
-import { LayoutDashboard, Users, Building, Package, ShoppingCart, FileText, Settings, UserCog, Clock, Calendar, DollarSign } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  Building,
+  UserCog,
+  Calendar,
+  FileText,
+  ShoppingCart,
+  Package,
+  DollarSign,
+  Settings,
+  Clock,
+  Box,
+  CreditCard,
+  Wallet,
+} from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -13,23 +28,22 @@ const navItems = [
   { name: 'Purchase Orders', icon: ShoppingCart, path: '/purchase-orders' },
   { name: 'Products', icon: Package, path: '/products' },
   { name: 'Warehouses', icon: Building, path: '/warehouses' },
-  { name: 'Stock', icon: Package, path: '/stock' },
+  { name: 'Stock', icon: Box, path: '/stock' },
   { name: 'Customers', icon: Users, path: '/customers' },
   { name: 'Invoices', icon: FileText, path: '/invoices' },
-  { name: 'Payments', icon: DollarSign, path: '/payments' },
-  { name: 'Accounts', icon: FileText, path: '/accounts' },
+  { name: 'Payments', icon: CreditCard, path: '/payments' },
+  { name: 'Accounts', icon: Wallet, path: '/accounts' },
   { name: 'Expenses', icon: DollarSign, path: '/expenses' },
   { name: 'Budgets', icon: DollarSign, path: '/budgets' },
-  { name: 'Budgets', icon: DollarSign, path: '/budgets' },
-  { name: 'Inventory', icon: Package, path: '/inventory' },
-  { name: 'Procurement', icon: ShoppingCart, path: '/procurement' },
+  { name: 'Assets', icon: Package, path: '/assets' },
   { name: 'Reports', icon: FileText, path: '/reports' },
+  { name: 'Projects', icon: FileText, path: '/projects' },
   { name: 'Settings', icon: Settings, path: '/settings' },
 ];
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 p-4 flex flex-col">
+    <aside className="w-64 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 p-4 flex flex-col overflow-y-auto">
       <div className="flex items-center gap-2 mb-8">
         <span className="text-2xl font-bold text-primary">CoreFlow</span>
       </div>
@@ -48,19 +62,3 @@ export default function Sidebar() {
     </aside>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

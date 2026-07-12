@@ -30,6 +30,9 @@ model User {
   managedDepartments Department[] @relation("DepartmentManager")
   employee      Employee?
   purchaseRequests PurchaseRequest[]
+  managedProjects Project[] @relation("ProjectManager")
+  assignedTasks Task[] @relation("TaskAssignee")
+  timeEntries   TimeEntry[]
 
   @@map("users")
 }
@@ -129,6 +132,7 @@ model Employee {
   leaveRequests LeaveRequest[]
   salaryStructures SalaryStructure[]
   payslips      Payslip[]
+  assets        Asset[]
 
   @@map("employees")
 }
@@ -419,6 +423,23 @@ model Account {
   @@map("accounts")
 }
 
+<<<<<<< HEAD
+=======
+model Budget {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id])
+  amount      Float
+  period      String
+  year        Int
+  month       Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("budgets")
+}
+
+>>>>>>> 0fb1ebe (CoreFlow ERP: Full system with Projects, Reports, Finance, Assets, Inventory, Procurement, Sales, HR, Leave management)
 model Expense {
   id          String   @id @default(cuid())
   accountId   String
@@ -434,6 +455,7 @@ model Expense {
   @@map("expenses")
 }
 
+<<<<<<< HEAD
 model Budget {
   id          String   @id @default(cuid())
   accountId   String
@@ -447,3 +469,98 @@ model Budget {
 
   @@map("budgets")
 }
+=======
+model Asset {
+  id            String   @id @default(cuid())
+  name          String
+  serialNumber  String?  @unique
+  description   String?
+  category      String?
+  purchaseDate  DateTime?
+  cost          Float?
+  depreciationRate Float? @default(0)
+  currentValue  Float?
+  status        String   @default("active")
+  assignedTo    String?
+  employee      Employee? @relation(fields: [assignedTo], references: [id])
+  location      String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  maintenanceRecords AssetMaintenance[]
+
+  @@map("assets")
+}
+
+model AssetMaintenance {
+  id          String   @id @default(cuid())
+  assetId     String
+  asset       Asset    @relation(fields: [assetId], references: [id])
+  date        DateTime @default(now())
+  type        String
+  cost        Float?
+  description String
+  notes       String?
+  nextDueDate DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("asset_maintenances")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String   @default("planning")
+  priority    String   @default("medium")
+  budget      Float?
+  spent       Float?   @default(0)
+  managerId   String?
+  manager     User?    @relation("ProjectManager", fields: [managerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tasks       Task[]
+
+  @@map("projects")
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  title       String
+  description String?
+  status      String   @default("todo")
+  priority    String   @default("medium")
+  assigneeId  String?
+  assignee    User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  dueDate     DateTime?
+  estimatedHours Float?
+  loggedHours  Float?   @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  timeEntries  TimeEntry[]
+
+  @@map("tasks")
+}
+
+model TimeEntry {
+  id          String   @id @default(cuid())
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  hours       Float
+  date        DateTime @default(now())
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@map("time_entries")
+}
+>>>>>>> 0fb1ebe (CoreFlow ERP: Full system with Projects, Reports, Finance, Assets, Inventory, Procurement, Sales, HR, Leave management)

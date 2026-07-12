@@ -18,6 +18,9 @@ import Payments from '../pages/Payments';
 import Accounts from '../pages/Accounts';
 import Expenses from '../pages/Expenses';
 import Budgets from '../pages/Budgets';
+import Assets from '../pages/Assets';
+import Reports from '../pages/Reports';
+import Projects from '../pages/Projects';
 import Login from '../components/auth/Login';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
@@ -51,28 +54,11 @@ export const router = createBrowserRouter([
           { path: '/accounts', element: <Accounts /> },
           { path: '/expenses', element: <Expenses /> },
           { path: '/budgets', element: <Budgets /> },
-          { path: '/budgets', element: <Budgets /> },
-                            ],
+          { path: '/assets', element: <Assets /> },
+          { path: '/reports', element: <Reports /> },
+          { path: '/projects', element: <Projects /> },
+        ],
       },
     ],
   },
 ]);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

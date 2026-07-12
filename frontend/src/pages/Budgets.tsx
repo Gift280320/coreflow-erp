@@ -32,7 +32,9 @@ export default function Budgets() {
   const { data, isLoading } = useQuery({
     queryKey: ['budgets', search],
     queryFn: async () => {
-      const res = await axios.get('/api/budgets');
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      const res = await axios.get(`/api/budgets?${params.toString()}`);
       return res.data;
     },
   });
@@ -111,7 +113,7 @@ export default function Budgets() {
               {data?.map((budget: any) => (
                 <TableRow key={budget.id}>
                   <TableCell>{budget.account?.name}</TableCell>
-                  <TableCell>${budget.amount.toFixed(2)}</TableCell>
+                  <TableCell>${budget.amount}</TableCell>
                   <TableCell>{budget.period}</TableCell>
                   <TableCell>{budget.year}</TableCell>
                   <TableCell>{budget.month || '-'}</TableCell>

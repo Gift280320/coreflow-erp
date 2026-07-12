@@ -24,15 +24,9 @@ export const getBudgets = async (req: Request, res: Response) => {
 
 export const createBudget = async (req: Request, res: Response) => {
   try {
-    console.log('📦 Received budget data:', req.body);
     const { accountId, amount, period, year, month } = req.body;
     if (!accountId || !amount || !period || !year) {
       return res.status(400).json({ error: 'accountId, amount, period, year are required' });
-    }
-    // Validate account exists
-    const account = await prisma.account.findUnique({ where: { id: accountId } });
-    if (!account) {
-      return res.status(404).json({ error: 'Account not found' });
     }
     const budget = await prisma.budget.create({
       data: {
@@ -46,7 +40,7 @@ export const createBudget = async (req: Request, res: Response) => {
     });
     res.status(201).json(budget);
   } catch (error: any) {
-    console.error('❌ Error creating budget:', error);
+    console.error('Error creating budget:', error);
     res.status(500).json({ error: error.message });
   }
 };

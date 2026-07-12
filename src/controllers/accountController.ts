@@ -18,10 +18,13 @@ export const getAccounts = async (req: Request, res: Response) => {
 
 export const createAccount = async (req: Request, res: Response) => {
   try {
-    console.log('Creating account with data:', req.body);
     const { code, name, type, description, parentId } = req.body;
     if (!code || !name || !type) {
       return res.status(400).json({ error: 'code, name, type are required' });
+    }
+    const existing = await prisma.account.findUnique({ where: { code } });
+    if (existing) {
+      return res.status(400).json({ error: `Account with code ${code} already exists` });
     }
     const account = await prisma.account.create({
       data: {
