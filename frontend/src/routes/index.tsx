@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import Dashboard from '../pages/Dashboard';
 import Users from '../pages/Users';
@@ -21,7 +21,8 @@ import Budgets from '../pages/Budgets';
 import Assets from '../pages/Assets';
 import Reports from '../pages/Reports';
 import Projects from '../pages/Projects';
-import Login from '../components/auth/Login';
+import Settings from '../pages/Settings';
+import Login from '../pages/Login';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
           { path: '/assets', element: <Assets /> },
           { path: '/reports', element: <Reports /> },
           { path: '/projects', element: <Projects /> },
+          { path: '/settings', element: <Settings /> },
         ],
       },
     ],
