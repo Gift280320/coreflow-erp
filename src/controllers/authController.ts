@@ -23,23 +23,18 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Update last login
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLogin: new Date() },
     });
 
-    // Generate token
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role?.name },
       process.env.JWT_SECRET || "secret",
       { expiresIn: "7d" }
     );
 
-    // Remove password from response
     const { password: _, ...userData } = user;
-
-    // Return token and user
     res.json({ token, user: userData });
   } catch (error: any) {
     console.error("Login error:", error);
@@ -49,20 +44,13 @@ export const login = async (req: Request, res: Response) => {
 
 export const getMe = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.userId;
-    if (!userId) {
+    // The user is already attached by the authenticate middleware
+    const user = (req as any).user;
+    if (!user) {
+      console.error("❌ getMe: No user found in request");
       return res.status(401).json({ message: "Unauthorized" });
     }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { role: true },
-    });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
+    console.log("✅ getMe: User found:", user.id);
     const { password: _, ...userData } = user;
     res.json(userData);
   } catch (error: any) {
