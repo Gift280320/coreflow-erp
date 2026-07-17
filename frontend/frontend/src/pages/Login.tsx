@@ -39,7 +39,6 @@ export default function Login() {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      console.log('User already logged in, redirecting to /');
       navigate('/');
     }
   }, [user, navigate]);
@@ -49,12 +48,10 @@ export default function Login() {
     setError('');
     setIsLoading(true);
     try {
-      console.log('Attempting login with:', email);
       await login(email, password);
-      console.log('Login successful, navigating to /');
-      navigate('/');
+      // Wait a moment for state to update, then navigate
+      setTimeout(() => navigate('/'), 150);
     } catch (err: any) {
-      console.error('Login error:', err);
       setError(err.response?.data?.message || 'Invalid credentials');
     } finally {
       setIsLoading(false);

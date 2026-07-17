@@ -8,31 +8,26 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  firstName     String
-  lastName      String
-  avatar        String?
-  isActive      Boolean   @default(true)
-  lastLogin     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  firstName   String?  @map("first_name")
+  lastName    String?  @map("last_name")
+  avatar      String?
+  roleId      String?  @map("role_id")
+  companyId   String?  @map("company_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  lastLogin   DateTime? @map("last_login")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  roleId        String
-  role          Role      @relation(fields: [roleId], references: [id])
-  companyId     String
-  company       Company   @relation(fields: [companyId], references: [id])
-
-  sessions      Session[]
-  auditLogs     AuditLog[]
-  notifications Notification[]
-  managedDepartments Department[] @relation("DepartmentManager")
-  employee      Employee?
-  purchaseRequests PurchaseRequest[]
-  managedProjects Project[] @relation("ProjectManager")
-  assignedTasks Task[] @relation("TaskAssignee")
-  timeEntries   TimeEntry[]
+  role        Role?    @relation(fields: [roleId], references: [id])
+  company     Company? @relation(fields: [companyId], references: [id])
+  employees   Employee[]
+  departments Department[] @relation("DepartmentManager")
+  leaveRequestsApproved LeaveRequest[] @relation("LeaveApprover")
+  projects    Project[] @relation("ProjectManager")
+  activityLogs ActivityLog[]
 
   @@map("users")
 }
@@ -40,306 +35,127 @@ model User {
 model Role {
   id          String   @id @default(cuid())
   name        String   @unique
-  description String?
-  permissions Permission[] @relation("PermissionRole")
+  permissions Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
   users       User[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  employees   Employee[]
 
   @@map("roles")
-}
-
-model Permission {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  roles       Role[]   @relation("PermissionRole")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("permissions")
 }
 
 model Company {
   id          String   @id @default(cuid())
   name        String
-  subdomain   String?  @unique
+  email       String?
+  phone       String?
+  address     String?
   logo        String?
-  timezone    String   @default("UTC")
-  currency    String   @default("USD")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   users       User[]
+  departments Department[]
+  employees   Employee[]
 
   @@map("companies")
-}
-
-model Session {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  ip        String?
-  userAgent String?
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@map("sessions")
-}
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  action    String
-  module    String?
-  details   Json?
-  ip        String?
-  createdAt DateTime @default(now())
-
-  @@map("audit_logs")
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  type      String
-  title     String
-  message   String
-  isRead    Boolean  @default(false)
-  link      String?
-  createdAt DateTime @default(now())
-
-  @@map("notifications")
-}
-
-model Employee {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
-  departmentId String
-  department  Department @relation(fields: [departmentId], references: [id])
-  jobTitle    String
-  hireDate    DateTime
-  salary      Float?
-  status      String   @default("active")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  leaveRequests LeaveRequest[]
-  salaryStructures SalaryStructure[]
-  payslips      Payslip[]
-  assets        Asset[]
-
-  @@map("employees")
 }
 
 model Department {
   id          String   @id @default(cuid())
   name        String
+  code        String?  @unique
   description String?
-  managerId   String?
+  managerId   String?  @map("manager_id")
+  companyId   String?  @map("company_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
   manager     User?    @relation("DepartmentManager", fields: [managerId], references: [id])
+  company     Company? @relation(fields: [companyId], references: [id])
   employees   Employee[]
-  purchaseRequests PurchaseRequest[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
   @@map("departments")
 }
 
+model Employee {
+  id          String   @id @default(cuid())
+  userId      String?  @map("user_id")
+  employeeId  String   @unique @map("employee_id")
+  firstName   String   @map("first_name")
+  lastName    String   @map("last_name")
+  email       String   @unique
+  phone       String?
+  position    String
+  departmentId String? @map("department_id")
+  roleId      String?  @map("role_id")
+  companyId   String?  @map("company_id")
+  managerId   String?  @map("manager_id")
+  hireDate    DateTime @map("hire_date")
+  salary      Float?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User?    @relation(fields: [userId], references: [id])
+  department  Department? @relation(fields: [departmentId], references: [id])
+  role        Role?    @relation(fields: [roleId], references: [id])
+  company     Company? @relation(fields: [companyId], references: [id])
+  leaveRequests LeaveRequest[]
+
+  @@map("employees")
+}
+
 model LeaveType {
   id          String   @id @default(cuid())
-  name        String   @unique
+  name        String
+  code        String   @unique
   description String?
-  daysPerYear Float
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  daysAllowed Int      @default(30) @map("days_allowed")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  requests    LeaveRequest[]
+  leaveRequests LeaveRequest[]
 
   @@map("leave_types")
 }
 
 model LeaveRequest {
-  id            String   @id @default(cuid())
-  employeeId    String
-  employee      Employee @relation(fields: [employeeId], references: [id])
-  leaveTypeId   String
-  leaveType     LeaveType @relation(fields: [leaveTypeId], references: [id])
-  startDate     DateTime
-  endDate       DateTime
-  days          Float
-  reason        String?
-  status        String   @default("pending")
-  approvedBy    String?
-  approvedAt    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  employeeId  String   @map("employee_id")
+  leaveTypeId String   @map("leave_type_id")
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  reason      String?
+  status      String   @default("PENDING")
+  approvedBy  String?  @map("approved_by")
+  approvedAt  DateTime? @map("approved_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+  approver    User?    @relation("LeaveApprover", fields: [approvedBy], references: [id])
 
   @@map("leave_requests")
-}
-
-model SalaryStructure {
-  id          String   @id @default(cuid())
-  employeeId  String   @unique
-  employee    Employee @relation(fields: [employeeId], references: [id])
-  basicSalary Float
-  allowances  Float?   @default(0)
-  deductions  Float?   @default(0)
-  taxRate     Float?   @default(0)
-  effectiveDate DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("salary_structures")
-}
-
-model Payslip {
-  id            String   @id @default(cuid())
-  employeeId    String
-  employee      Employee @relation(fields: [employeeId], references: [id])
-  month         Int
-  year          Int
-  basicSalary   Float
-  allowances    Float
-  deductions    Float
-  tax           Float
-  netPay        Float
-  generatedAt   DateTime @default(now())
-  createdAt     DateTime @default(now())
-
-  @@map("payslips")
 }
 
 model Supplier {
   id          String   @id @default(cuid())
   name        String
-  contactPerson String?
   email       String?
   phone       String?
   address     String?
-  taxId       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  taxId       String?  @map("tax_id")
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  purchaseOrders PurchaseOrder[]
+  products    Product[]
 
   @@map("suppliers")
-}
-
-model Customer {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?
-  phone       String?
-  address     String?
-  taxId       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  invoices    Invoice[]
-  payments    Payment[]
-
-  @@map("customers")
-}
-
-model Invoice {
-  id            String   @id @default(cuid())
-  invoiceNumber String  @unique
-  customerId    String
-  customer      Customer @relation(fields: [customerId], references: [id])
-  issueDate     DateTime @default(now())
-  dueDate       DateTime
-  subtotal      Float
-  taxRate       Float?   @default(0)
-  taxAmount     Float    @default(0)
-  total         Float
-  status        String   @default("draft")
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  items         InvoiceItem[]
-  payments      Payment[]
-
-  @@map("invoices")
-}
-
-model InvoiceItem {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
-  productId   String?
-  product     Product? @relation(fields: [productId], references: [id])
-  description String
-  quantity    Float
-  unitPrice   Float
-  total       Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("invoice_items")
-}
-
-model Payment {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
-  amount      Float
-  paymentDate DateTime @default(now())
-  method      String?
-  reference   String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("payments")
-}
-
-model PurchaseOrder {
-  id          String   @id @default(cuid())
-  supplierId  String
-  supplier    Supplier @relation(fields: [supplierId], references: [id])
-  purchaseRequestId String?
-  purchaseRequest PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
-  orderNumber String   @unique
-  orderDate   DateTime @default(now())
-  totalAmount Float
-  status      String   @default("draft")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("purchase_orders")
-}
-
-model PurchaseRequest {
-  id          String   @id @default(cuid())
-  requestedBy String
-  user        User     @relation(fields: [requestedBy], references: [id])
-  departmentId String
-  department  Department @relation(fields: [departmentId], references: [id])
-  title       String
-  description String?
-  priority    String   @default("normal")
-  status      String   @default("pending")
-  requestedAt DateTime @default(now())
-  approvedBy  String?
-  approvedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  purchaseOrders PurchaseOrder[]
-
-  @@map("purchase_requests")
 }
 
 model Product {
@@ -348,60 +164,69 @@ model Product {
   sku         String   @unique
   description String?
   category    String?
-  unitPrice   Float
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  unitPrice   Float    @map("unit_price")
+  costPrice   Float    @map("cost_price")
+  stock       Int      @default(0)
+  reorderLevel Int     @default(10) @map("reorder_level")
+  warehouseId String?  @map("warehouse_id")
+  supplierId  String?  @map("supplier_id")
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  stockItems  StockItem[]
-  stockMovements StockMovement[]
-  invoiceItems InvoiceItem[]
+  supplier    Supplier? @relation(fields: [supplierId], references: [id])
 
   @@map("products")
 }
 
-model Warehouse {
+model Customer {
   id          String   @id @default(cuid())
   name        String
-  location    String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  email       String?
+  phone       String?
+  address     String?
+  taxId       String?  @map("tax_id")
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  stockItems  StockItem[]
-  stockMovements StockMovement[]
+  invoices    Invoice[]
 
-  @@map("warehouses")
+  @@map("customers")
 }
 
-model StockItem {
+model Invoice {
   id          String   @id @default(cuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id])
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-  quantity    Float    @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  invoiceNumber String @unique @map("invoice_number")
+  customerId  String   @map("customer_id")
+  issueDate   DateTime @map("issue_date")
+  dueDate     DateTime @map("due_date")
+  total       Float
+  tax         Float    @default(0)
+  status      String   @default("DRAFT")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@unique([productId, warehouseId])
-  @@map("stock_items")
+  customer    Customer @relation(fields: [customerId], references: [id])
+  payments    Payment[]
+
+  @@map("invoices")
 }
 
-model StockMovement {
+model Payment {
   id          String   @id @default(cuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id])
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-  quantity    Float
-  type        String
+  invoiceId   String   @map("invoice_id")
+  amount      Float
+  method      String
   reference   String?
-  note        String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  paymentDate DateTime @map("payment_date")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@map("stock_movements")
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@map("payments")
 }
 
 model Account {
@@ -410,157 +235,99 @@ model Account {
   name        String
   type        String
   description String?
-  parentId    String?
+  parentId    String?  @map("parent_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
   parent      Account? @relation("AccountParent", fields: [parentId], references: [id])
   children    Account[] @relation("AccountParent")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
   expenses    Expense[]
   budgets     Budget[]
 
   @@map("accounts")
 }
 
-<<<<<<< HEAD
-=======
-model Budget {
-  id          String   @id @default(cuid())
-  accountId   String
-  account     Account  @relation(fields: [accountId], references: [id])
-  amount      Float
-  period      String
-  year        Int
-  month       Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("budgets")
-}
-
->>>>>>> 0fb1ebe (CoreFlow ERP: Full system with Projects, Reports, Finance, Assets, Inventory, Procurement, Sales, HR, Leave management)
 model Expense {
   id          String   @id @default(cuid())
-  accountId   String
-  account     Account  @relation(fields: [accountId], references: [id])
+  accountId   String   @map("account_id")
   amount      Float
   description String
   date        DateTime @default(now())
   reference   String?
-  paidBy      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  paidBy      String?  @map("paid_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  account     Account  @relation(fields: [accountId], references: [id])
 
   @@map("expenses")
 }
 
-<<<<<<< HEAD
 model Budget {
   id          String   @id @default(cuid())
-  accountId   String
-  account     Account  @relation(fields: [accountId], references: [id])
+  accountId   String   @map("account_id")
   amount      Float
   period      String
   year        Int
   month       Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  account     Account  @relation(fields: [accountId], references: [id])
 
   @@map("budgets")
 }
-=======
-model Asset {
-  id            String   @id @default(cuid())
-  name          String
-  serialNumber  String?  @unique
-  description   String?
-  category      String?
-  purchaseDate  DateTime?
-  cost          Float?
-  depreciationRate Float? @default(0)
-  currentValue  Float?
-  status        String   @default("active")
-  assignedTo    String?
-  employee      Employee? @relation(fields: [assignedTo], references: [id])
-  location      String?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
 
-  maintenanceRecords AssetMaintenance[]
+model Asset {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  category    String?
+  description String?
+  purchaseDate DateTime @map("purchase_date")
+  purchasePrice Float   @map("purchase_price")
+  currentValue Float   @map("current_value")
+  status      String   @default("ACTIVE")
+  location    String?
+  assignedTo  String?  @map("assigned_to")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("assets")
-}
-
-model AssetMaintenance {
-  id          String   @id @default(cuid())
-  assetId     String
-  asset       Asset    @relation(fields: [assetId], references: [id])
-  date        DateTime @default(now())
-  type        String
-  cost        Float?
-  description String
-  notes       String?
-  nextDueDate DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("asset_maintenances")
 }
 
 model Project {
   id          String   @id @default(cuid())
   name        String
+  code        String   @unique
   description String?
-  startDate   DateTime?
-  endDate     DateTime?
-  status      String   @default("planning")
-  priority    String   @default("medium")
+  status      String   @default("PLANNING")
+  priority    String   @default("MEDIUM")
+  progress    Int      @default(0)
+  startDate   DateTime @map("start_date")
+  endDate     DateTime? @map("end_date")
+  managerId   String?  @map("manager_id")
   budget      Float?
-  spent       Float?   @default(0)
-  managerId   String?
-  manager     User?    @relation("ProjectManager", fields: [managerId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  tasks       Task[]
+  manager     User?    @relation("ProjectManager", fields: [managerId], references: [id])
 
   @@map("projects")
 }
 
-model Task {
+model ActivityLog {
   id          String   @id @default(cuid())
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id])
-  title       String
+  userId      String   @map("user_id")
+  action      String
+  entity      String
+  entityId    String?  @map("entity_id")
   description String?
-  status      String   @default("todo")
-  priority    String   @default("medium")
-  assigneeId  String?
-  assignee    User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  dueDate     DateTime?
-  estimatedHours Float?
-  loggedHours  Float?   @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  timeEntries  TimeEntry[]
-
-  @@map("tasks")
-}
-
-model TimeEntry {
-  id          String   @id @default(cuid())
-  taskId      String
-  task        Task     @relation(fields: [taskId], references: [id])
-  userId      String
   user        User     @relation(fields: [userId], references: [id])
-  hours       Float
-  date        DateTime @default(now())
-  description String?
-  createdAt   DateTime @default(now())
 
-  @@map("time_entries")
+  @@map("activity_logs")
 }
->>>>>>> 0fb1ebe (CoreFlow ERP: Full system with Projects, Reports, Finance, Assets, Inventory, Procurement, Sales, HR, Leave management)

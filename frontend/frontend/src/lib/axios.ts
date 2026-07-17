@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 
 const api = axios.create({
   baseURL: 'http://localhost:5000/api',
@@ -8,27 +8,27 @@ const api = axios.create({
   },
 });
 
-// Request interceptor – attach token
+// Request interceptor to attach token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log('📤 Request:', config.method?.toUpperCase(), config.url, 'Auth:', config.headers.Authorization ? '✅' : '❌');
+    console.log('📤 Request:', config.method?.toUpperCase(), config.url, 'Headers:', config.headers);
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor – handle 401
+// Response interceptor to handle 401
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.log('⚠️ 401 Unauthorized – clearing token');
+      console.log('⚠️ 401 Unauthorized – redirecting to login');
       localStorage.removeItem('token');
-      // Do not redirect automatically – let the app handle it
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

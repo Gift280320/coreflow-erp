@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../lib/axios';
 
 interface User {
@@ -23,15 +23,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      fetchUser();
-    } else {
-      setIsLoading(false);
-    }
-  }, []);
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    fetchUser();
+  } else {
+    setIsLoading(false);
+  }
+}, []);
 
   const fetchUser = async () => {
     try {
@@ -52,7 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', token);
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(user);
-    console.log('✅ Login successful, token saved');
   };
 
   const logout = () => {
