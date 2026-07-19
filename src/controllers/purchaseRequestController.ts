@@ -5,16 +5,17 @@ const prisma = new PrismaClient();
 
 export const getPurchaseRequests = async (req: Request, res: Response) => {
   try {
-    const { status, departmentId, page = 1, limit = 10 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { status, page = '1', limit = '10' } = req.query;
     const where: any = {};
     if (status) where.status = status as string;
-    if (departmentId) where.departmentId = departmentId as string;
     const [data, total] = await Promise.all([
       prisma.purchaseRequest.findMany({
         where,
-        include: { user: true, department: true },
-        skip,
+        include: {
+          department: true,
+          requester: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+        skip: (Number(page) - 1) * Number(limit),
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
       }),
@@ -29,43 +30,50 @@ export const getPurchaseRequests = async (req: Request, res: Response) => {
 
 export const createPurchaseRequest = async (req: Request, res: Response) => {
   try {
-    console.log('Received purchase request data:', req.body);
-    const { requestedBy, departmentId, title, description, priority } = req.body;
-    if (!requestedBy || !departmentId || !title) {
-      return res.status(400).json({ error: 'requestedBy, departmentId, title are required' });
+    const { title, description, priority, quantity, departmentId, requestedBy } = req.body;
+    if (!title || !requestedBy) {
+      return res.status(400).json({ error: 'title and requestedBy are required' });
     }
+
     const request = await prisma.purchaseRequest.create({
       data: {
-        requestedBy,
-        departmentId,
         title,
         description: description || null,
-        priority: priority || 'normal',
-        status: 'pending',
+        priority: priority || 'medium',
+        quantity: quantity ? parseInt(quantity) : 1,
+        departmentId: departmentId || null,
+        requestedBy,
       },
-      include: { user: true, department: true },
+      include: {
+        department: true,
+        requester: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
     });
     res.status(201).json(request);
   } catch (error: any) {
     console.error('Error creating purchase request:', error);
-    res.status(500).json({ error: error.message, code: error.code });
+    res.status(500).json({ error: error.message });
   }
 };
 
-export const updatePurchaseRequestStatus = async (req: Request, res: Response) => {
+export const updatePurchaseRequest = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, approvedBy } = req.body;
-    if (!status) return res.status(400).json({ error: 'status is required' });
-    const data: any = { status };
-    if (status === 'approved' || status === 'rejected') {
-      data.approvedAt = new Date();
-      if (approvedBy) data.approvedBy = approvedBy;
-    }
+    const { status, priority, description } = req.body;
+    const existing = await prisma.purchaseRequest.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+
     const request = await prisma.purchaseRequest.update({
       where: { id },
-      data,
-      include: { user: true, department: true },
+      data: {
+        status: status || existing.status,
+        priority: priority || existing.priority,
+        description: description !== undefined ? description : existing.description,
+      },
+      include: {
+        department: true,
+        requester: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
     });
     res.json(request);
   } catch (error: any) {
@@ -81,6 +89,30 @@ export const deletePurchaseRequest = async (req: Request, res: Response) => {
     res.status(204).send();
   } catch (error: any) {
     console.error('Error deleting purchase request:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updatePurchaseRequestStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: 'status is required' });
+
+    const existing = await prisma.purchaseRequest.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+
+    const request = await prisma.purchaseRequest.update({
+      where: { id },
+      data: { status },
+      include: {
+        department: true,
+        requester: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+    });
+    res.json(request);
+  } catch (error: any) {
+    console.error('Error updating purchase request status:', error);
     res.status(500).json({ error: error.message });
   }
 };

@@ -18,6 +18,8 @@ model User {
   companyId   String?  @map("company_id")
   isActive    Boolean  @default(true) @map("is_active")
   lastLogin   DateTime? @map("last_login")
+  resetToken          String?   @map("reset_token")
+  resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -28,6 +30,8 @@ model User {
   leaveRequestsApproved LeaveRequest[] @relation("LeaveApprover")
   projects    Project[] @relation("ProjectManager")
   activityLogs ActivityLog[]
+  purchaseRequests PurchaseRequest[] @relation("PurchaseRequester")
+  purchaseOrders PurchaseOrder[] @relation("PurchaseOrderCreator")
 
   @@map("users")
 }
@@ -75,13 +79,14 @@ model Department {
   manager     User?    @relation("DepartmentManager", fields: [managerId], references: [id])
   company     Company? @relation(fields: [companyId], references: [id])
   employees   Employee[]
+  purchaseRequests PurchaseRequest[]
 
   @@map("departments")
 }
 
 model Employee {
   id          String   @id @default(cuid())
-  userId      String?  @map("user_id")
+  userId      String?  @unique @map("user_id")
   employeeId  String   @unique @map("employee_id")
   firstName   String   @map("first_name")
   lastName    String   @map("last_name")
@@ -154,6 +159,7 @@ model Supplier {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   products    Product[]
+  purchaseOrders PurchaseOrder[]
 
   @@map("suppliers")
 }
@@ -175,6 +181,9 @@ model Product {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   supplier    Supplier? @relation(fields: [supplierId], references: [id])
+  stockItems  StockItem[]
+  stockMovements StockMovement[]
+  orderItems PurchaseOrderItem[]
 
   @@map("products")
 }
@@ -330,4 +339,102 @@ model ActivityLog {
   user        User     @relation(fields: [userId], references: [id])
 
   @@map("activity_logs")
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  code      String?  @unique
+  location  String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  stockItems StockItem[]
+  stockMovements StockMovement[]
+
+  @@map("warehouses")
+}
+
+model StockItem {
+  id          String   @id @default(cuid())
+  productId   String   @map("product_id")
+  warehouseId String   @map("warehouse_id")
+  quantity    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  product   Product   @relation(fields: [productId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([productId, warehouseId])
+  @@map("stock_items")
+}
+
+model StockMovement {
+  id          String   @id @default(cuid())
+  productId   String   @map("product_id")
+  warehouseId String   @map("warehouse_id")
+  quantity    Int
+  type        String
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  product   Product   @relation(fields: [productId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@map("stock_movements")
+}
+
+model PurchaseRequest {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  priority    String   @default("medium")
+  status      String   @default("pending")
+  quantity    Int      @default(1)
+  departmentId String? @map("department_id")
+  requestedBy String   @map("requested_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  department  Department? @relation(fields: [departmentId], references: [id])
+  requester   User        @relation("PurchaseRequester", fields: [requestedBy], references: [id])
+
+  @@map("purchase_requests")
+}
+model PurchaseOrder {
+  id          String   @id @default(cuid())
+  orderNumber String   @unique @map("order_number")
+  supplierId  String   @map("supplier_id")
+  status      String   @default("DRAFT")
+  orderDate   DateTime @default(now()) @map("order_date")
+  expectedDate DateTime? @map("expected_date")
+  totalAmount Float    @default(0) @map("total_amount")
+  notes       String?
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  supplier    Supplier  @relation(fields: [supplierId], references: [id])
+  creator     User      @relation("PurchaseOrderCreator", fields: [createdBy], references: [id])
+  items       PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id             String   @id @default(cuid())
+  orderId        String   @map("order_id")
+  productId      String   @map("product_id")
+  quantity       Int
+  unitPrice      Float    @map("unit_price")
+  totalPrice     Float    @map("total_price")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  order    PurchaseOrder @relation(fields: [orderId], references: [id])
+  product  Product       @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
 }

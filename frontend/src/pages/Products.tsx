@@ -1,103 +1,188 @@
 ﻿import { useState } from 'react';
-import { useDebounce } from '../hooks/useDebounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from '../lib/axios';
+import api from '../lib/axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent } from '../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Label } from '../components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-import { Label } from '../components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
+import { Card, CardContent } from '../components/ui/card';
 import { Pencil, Trash2, Plus, Search } from 'lucide-react';
 
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  description?: string;
+  category?: string;
+  unitPrice: number;
+  costPrice: number;
+  stock: number;
+  reorderLevel: number;
+  warehouseId?: string;
+  supplierId?: string;
+  status: string;
+  warehouse?: { id: string; name: string };
+  supplier?: { id: string; name: string };
+}
+
 export default function Products() {
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 400);
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [error, setError] = useState('');
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    sku: '',
+    description: '',
+    category: '',
+    unitPrice: '',
+    costPrice: '',
+    stock: '0',
+    reorderLevel: '10',
+    warehouseId: '',
+    supplierId: '',
+    status: 'ACTIVE',
+  });
+  const [error, setError] = useState('');
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['products', debouncedSearch],
+  const { data: products, isLoading } = useQuery({
+    queryKey: ['products', search],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.append('search', debouncedSearch);
-      const res = await axios.get(`/api/products?${params.toString()}`);
-      return res.data;
+      const res = await api.get(`/api/products?search=${search}`);
+      return Array.isArray(res.data) ? res.data : res.data?.data || [];
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => axios.delete(`/api/products/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products'] }),
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses-list'],
+    queryFn: async () => {
+      const res = await api.get('/api/warehouses');
+      return Array.isArray(res.data) ? res.data : res.data?.data || [];
+    },
   });
 
-  const saveMutation = useMutation({
-    mutationFn: (data: any) => {
-      if (data.id) return axios.put(`/api/products/${data.id}`, data);
-      return axios.post('/api/products', data);
+  const { data: suppliers } = useQuery({
+    queryKey: ['suppliers-list'],
+    queryFn: async () => {
+      const res = await api.get('/api/suppliers');
+      return Array.isArray(res.data) ? res.data : res.data?.data || [];
     },
-    onError: (err: any) => setError(err.response?.data?.error || err.response?.data?.message || 'Save failed'),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => (await api.post('/api/products', data)).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setIsDialogOpen(false);
-      setSelectedProduct(null);
+      resetForm();
       setError('');
     },
+    onError: (err: any) => setError(err.response?.data?.error || 'Failed to save product'),
   });
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure?')) deleteMutation.mutate(id);
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) =>
+      (await api.put(`/api/products/${id}`, data)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setIsDialogOpen(false);
+      resetForm();
+      setError('');
+    },
+    onError: (err: any) => setError(err.response?.data?.error || 'Failed to update product'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => { await api.delete(`/api/products/${id}`); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products'] }),
+    onError: (err: any) => alert(err.response?.data?.error || 'Failed to delete product'),
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: '', sku: '', description: '', category: '', unitPrice: '', costPrice: '',
+      stock: '0', reorderLevel: '10', warehouseId: '', supplierId: '', status: 'ACTIVE',
+    });
+    setEditingProduct(null);
   };
 
-  const handleEdit = (product: any) => {
-    setSelectedProduct(product);
-    setIsDialogOpen(true);
-    setError('');
-  };
+  const handleCreate = () => { resetForm(); setIsDialogOpen(true); setError(''); };
 
-  const handleCreate = () => {
-    setSelectedProduct({});
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setFormData({
+      name: product.name, sku: product.sku,
+      description: product.description || '',
+      category: product.category || '',
+      unitPrice: product.unitPrice.toString(),
+      costPrice: product.costPrice.toString(),
+      stock: product.stock.toString(),
+      reorderLevel: product.reorderLevel.toString(),
+      warehouseId: product.warehouseId || '',
+      supplierId: product.supplierId || '',
+      status: product.status || 'ACTIVE',
+    });
     setIsDialogOpen(true);
     setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const data = {
-      id: selectedProduct?.id,
-      name: form.name.value,
-      sku: form.sku.value,
-      description: form.description.value || null,
-      category: form.category.value || null,
-      unitPrice: parseFloat(form.unitPrice.value) || 0,
+    setError('');
+    const payload = {
+      ...formData,
+      unitPrice: parseFloat(formData.unitPrice),
+      costPrice: parseFloat(formData.costPrice),
+      stock: parseInt(formData.stock),
+      reorderLevel: parseInt(formData.reorderLevel),
+      warehouseId: formData.warehouseId || null,
+      supplierId: formData.supplierId || null,
     };
-    saveMutation.mutate(data);
+    editingProduct
+      ? updateMutation.mutate({ id: editingProduct.id, data: payload })
+      : createMutation.mutate(payload);
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  const handleDelete = (id: string) => {
+    if (confirm('Delete this product?')) deleteMutation.mutate(id);
+  };
+
+  if (isLoading) return <div className="flex items-center justify-center h-64">Loading...</div>;
+
+  const filtered = products?.filter((p: Product) =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.sku.toLowerCase().includes(search.toLowerCase())
+  ) || [];
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Products</h1>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Products</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Manage products</p>
+        </div>
         <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> Add Product</Button>
       </div>
 
-      <div className="mb-4">
-        <Input
-          placeholder="Search products by name or SKU..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input placeholder="Search products..." value={search}
+            onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+        </div>
       </div>
 
       <Card>
@@ -105,70 +190,96 @@ export default function Products() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Unit Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Name</TableHead><TableHead>SKU</TableHead>
+                <TableHead>Unit Price</TableHead><TableHead>Cost Price</TableHead>
+                <TableHead>Stock</TableHead><TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.data.map((product: any) => (
+              {filtered.map((product: Product) => (
                 <TableRow key={product.id}>
-                  <TableCell>{product.name}</TableCell>
+                  <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.sku}</TableCell>
-                  <TableCell>{product.category || '-'}</TableCell>
-                  <TableCell>${product.unitPrice}</TableCell>
-                  <TableCell>{product.isActive ? 'Active' : 'Inactive'}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(product)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(product.id)}>
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
+                  <TableCell>KSh {product.unitPrice.toLocaleString()}</TableCell>
+                  <TableCell>KSh {product.costPrice.toLocaleString()}</TableCell>
+                  <TableCell>{product.stock}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      product.status === 'ACTIVE' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                      product.status === 'INACTIVE' ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400' :
+                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    }`}>{product.status}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(product)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => handleDelete(product.id)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"><Trash2 className="w-4 h-4 text-red-500" /></button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
+              {filtered.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="text-center text-gray-500 py-8">No products found</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selectedProduct?.id ? 'Edit Product' : 'Create Product'}</DialogTitle>
+            <DialogTitle>{editingProduct ? 'Edit Product' : 'Add Product'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input type="hidden" name="id" value={selectedProduct?.id || ''} />
-            <div>
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" defaultValue={selectedProduct?.name || ''} required />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required /></div>
+              <div className="space-y-2"><Label htmlFor="sku">SKU</Label><Input id="sku" value={formData.sku} onChange={(e) => setFormData({...formData, sku: e.target.value})} required /></div>
             </div>
-            <div>
-              <Label htmlFor="sku">SKU (unique)</Label>
-              <Input id="sku" name="sku" defaultValue={selectedProduct?.sku || ''} required />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label htmlFor="category">Category</Label><Input id="category" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} /></div>
+              <div className="space-y-2"><Label htmlFor="description">Description</Label><Input id="description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} /></div>
             </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Input id="description" name="description" defaultValue={selectedProduct?.description || ''} />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label htmlFor="unitPrice">Unit Price (KSh)</Label><Input id="unitPrice" type="number" step="0.01" value={formData.unitPrice} onChange={(e) => setFormData({...formData, unitPrice: e.target.value})} required /></div>
+              <div className="space-y-2"><Label htmlFor="costPrice">Cost Price (KSh)</Label><Input id="costPrice" type="number" step="0.01" value={formData.costPrice} onChange={(e) => setFormData({...formData, costPrice: e.target.value})} required /></div>
             </div>
-            <div>
-              <Label htmlFor="category">Category</Label>
-              <Input id="category" name="category" defaultValue={selectedProduct?.category || ''} />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label htmlFor="stock">Stock</Label><Input id="stock" type="number" value={formData.stock} onChange={(e) => setFormData({...formData, stock: e.target.value})} required /></div>
+              <div className="space-y-2"><Label htmlFor="reorderLevel">Reorder Level</Label><Input id="reorderLevel" type="number" value={formData.reorderLevel} onChange={(e) => setFormData({...formData, reorderLevel: e.target.value})} /></div>
             </div>
-            <div>
-              <Label htmlFor="unitPrice">Unit Price</Label>
-              <Input id="unitPrice" name="unitPrice" type="number" step="0.01" defaultValue={selectedProduct?.unitPrice || 0} required />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label htmlFor="warehouse">Warehouse</Label>
+                <select id="warehouse" value={formData.warehouseId} onChange={(e) => setFormData({...formData, warehouseId: e.target.value})} className="w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                  <option value="">None</option>
+                  {warehouses?.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2"><Label htmlFor="supplier">Supplier</Label>
+                <select id="supplier" value={formData.supplierId} onChange={(e) => setFormData({...formData, supplierId: e.target.value})} className="w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                  <option value="">None</option>
+                  {suppliers?.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" disabled={saveMutation.isPending}>{saveMutation.isPending ? 'Saving...' : 'Save'}</Button>
+            <div className="space-y-2"><Label htmlFor="status">Status</Label>
+              <select id="status" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="DRAFT">Draft</option>
+              </select>
+            </div>
+            {error && <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg">{error}</div>}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                {createMutation.isPending || updateMutation.isPending ? 'Saving...' : editingProduct ? 'Update Product' : 'Create Product'}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-

@@ -24,8 +24,16 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isDark, setIsDark] = useState(false);
-  const { login, user } = useAuth();
+
+  // System theme detection
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,25 +44,22 @@ export default function Login() {
     }
   }, [isDark]);
 
-  // Redirect if already logged in
+  // Listen for system theme changes
   useEffect(() => {
-    if (user) {
-      console.log('User already logged in, redirecting to /');
-      navigate('/');
-    }
-  }, [user, navigate]);
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    media.addEventListener('change', handler);
+    return () => media.removeEventListener('change', handler);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
     try {
-      console.log('Attempting login with:', email);
       await login(email, password);
-      console.log('Login successful, navigating to /');
       navigate('/');
     } catch (err: any) {
-      console.error('Login error:', err);
       setError(err.response?.data?.message || 'Invalid credentials');
     } finally {
       setIsLoading(false);
@@ -80,20 +85,8 @@ export default function Login() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-100/10 dark:bg-blue-800/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Theme toggle */}
-      <div className="absolute top-6 right-6 z-20">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsDark(!isDark)}
-          className="rounded-full backdrop-blur-sm bg-white/30 dark:bg-gray-800/30 border border-white/20 dark:border-gray-700/20 shadow-sm hover:scale-105 transition"
-        >
-          {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-gray-700" />}
-        </Button>
-      </div>
-
       <div className="w-full flex flex-col lg:flex-row">
-        {/* LEFT PANEL – Branding */}
+        {/* LEFT PANEL – Branding (fixed dark) */}
         <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-800 to-blue-900 p-12 flex-col justify-between min-h-screen">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-20 left-10 w-64 h-64 bg-blue-400/10 rounded-full blur-2xl" />
@@ -148,7 +141,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* RIGHT PANEL – Login Card */}
+        {/* RIGHT PANEL – Login Card (theme-aware) */}
         <motion.div
           className="flex-1 flex items-center justify-center p-6 lg:p-12 min-h-screen"
           initial="hidden"
@@ -180,7 +173,7 @@ export default function Login() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
+                <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Email
                 </Label>
                 <Input
@@ -195,7 +188,7 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">
+                <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Password
                 </Label>
                 <div className="relative">
@@ -227,11 +220,11 @@ export default function Login() {
                     checked={rememberMe}
                     onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                   />
-                  <Label htmlFor="remember" className="text-sm cursor-pointer">
+                  <Label htmlFor="remember" className="text-sm cursor-pointer text-gray-700 dark:text-gray-300">
                     Remember me
                   </Label>
                 </div>
-                <a href="#" className="text-sm text-primary hover:underline font-medium">
+                <a href="/forgot-password" className="text-sm text-primary hover:underline font-medium">
                   Forgot password?
                 </a>
               </div>

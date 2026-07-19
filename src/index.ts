@@ -27,7 +27,8 @@ import reportRoutes from './routes/reports';
 import projectRoutes from './routes/projects';
 import dashboardRoutes from './routes/dashboard';
 import activityRoutes from './routes/activity';
-import rolesRoutes from './routes/roles';  // <-- ADD THIS
+import rolesRoutes from './routes/roles';
+import passwordRoutes from './routes/password';   // <-- NEW
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -66,10 +67,11 @@ app.use('/api/assets', assetRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/projects', projectRoutes);
 
-// NEW: Dashboard, Activity, Roles
+// NEW: Dashboard, Activity, Roles, Password
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/activity', activityRoutes);
-app.use('/api/roles', rolesRoutes);   // <-- ADD THIS
+app.use('/api/roles', rolesRoutes);
+app.use('/api/password', passwordRoutes);   // <-- NEW
 
 app.use(errorHandler);
 

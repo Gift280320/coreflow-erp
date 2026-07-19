@@ -5,60 +5,82 @@ const prisma = new PrismaClient();
 
 export const getLeaveTypes = async (req: Request, res: Response) => {
   try {
-    const types = await prisma.leaveType.findMany({
+    const leaveTypes = await prisma.leaveType.findMany({
       orderBy: { name: 'asc' },
     });
-    res.json(types);
+    res.json(leaveTypes);
   } catch (error: any) {
-    console.error('Error fetching leave types:', error);
+    console.error('Get leave types error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
 export const createLeaveType = async (req: Request, res: Response) => {
   try {
-    const { name, description, daysPerYear, isActive } = req.body;
-    if (!name || daysPerYear === undefined) {
-      return res.status(400).json({ message: 'Name and daysPerYear are required' });
+    const { name, code, description, daysAllowed, isActive } = req.body;
+
+    // Validate required fields
+    if (!name || !code) {
+      return res.status(400).json({ error: 'Name and code are required' });
     }
+
+    // Check if code already exists
+    const existing = await prisma.leaveType.findUnique({
+      where: { code },
+    });
+    if (existing) {
+      return res.status(400).json({ error: 'Leave type code already exists' });
+    }
+
     const leaveType = await prisma.leaveType.create({
       data: {
-        name: name.trim(),
-        description: description?.trim() || null,
-        daysPerYear: parseFloat(daysPerYear),
+        name,
+        code,
+        description: description || null,
+        daysAllowed: daysAllowed ? parseInt(daysAllowed) : 30,
         isActive: isActive !== undefined ? isActive : true,
       },
     });
+
     res.status(201).json(leaveType);
   } catch (error: any) {
-    console.error('Error creating leave type:', error);
-    // Handle duplicate name
-    if (error.code === 'P2002') {
-      return res.status(400).json({ message: 'A leave type with this name already exists.' });
-    }
-    res.status(500).json({ error: error.message, code: error.code });
+    console.error('Create leave type error:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 export const updateLeaveType = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, daysPerYear, isActive } = req.body;
+    const { name, code, description, daysAllowed, isActive } = req.body;
+
+    const existing = await prisma.leaveType.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Leave type not found' });
+    }
+
+    // If code is changed, check uniqueness
+    if (code && code !== existing.code) {
+      const duplicate = await prisma.leaveType.findUnique({ where: { code } });
+      if (duplicate) {
+        return res.status(400).json({ error: 'Leave type code already exists' });
+      }
+    }
+
     const leaveType = await prisma.leaveType.update({
       where: { id },
       data: {
-        name: name.trim(),
-        description: description?.trim() || null,
-        daysPerYear: parseFloat(daysPerYear),
-        isActive,
+        name: name || existing.name,
+        code: code || existing.code,
+        description: description !== undefined ? description : existing.description,
+        daysAllowed: daysAllowed ? parseInt(daysAllowed) : existing.daysAllowed,
+        isActive: isActive !== undefined ? isActive : existing.isActive,
       },
     });
+
     res.json(leaveType);
   } catch (error: any) {
-    console.error('Error updating leave type:', error);
-    if (error.code === 'P2002') {
-      return res.status(400).json({ message: 'A leave type with this name already exists.' });
-    }
+    console.error('Update leave type error:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -66,10 +88,14 @@ export const updateLeaveType = async (req: Request, res: Response) => {
 export const deleteLeaveType = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const existing = await prisma.leaveType.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Leave type not found' });
+    }
     await prisma.leaveType.delete({ where: { id } });
     res.status(204).send();
   } catch (error: any) {
-    console.error('Error deleting leave type:', error);
+    console.error('Delete leave type error:', error);
     res.status(500).json({ error: error.message });
   }
 };

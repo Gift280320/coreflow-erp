@@ -1,18 +1,19 @@
-﻿import { Router } from 'express';
-import { authenticate } from '../middleware/auth';
+﻿import express from 'express';
 import {
   getPurchaseRequests,
   createPurchaseRequest,
-  updatePurchaseRequestStatus,
+  updatePurchaseRequest,
   deletePurchaseRequest,
+  updatePurchaseRequestStatus,
 } from '../controllers/purchaseRequestController';
+import { authenticate } from '../middleware/auth';
 
-const router = Router();
-router.use(authenticate);
+const router = express.Router();
 
-router.get('/', getPurchaseRequests);
-router.post('/', createPurchaseRequest);
-router.patch('/:id/status', updatePurchaseRequestStatus);
-router.delete('/:id', deletePurchaseRequest);
+router.get('/', authenticate, getPurchaseRequests);
+router.post('/', authenticate, createPurchaseRequest);
+router.put('/:id', authenticate, updatePurchaseRequest);
+router.delete('/:id', authenticate, deletePurchaseRequest);
+router.patch('/:id/status', authenticate, updatePurchaseRequestStatus);
 
 export default router;

@@ -1,18 +1,21 @@
-﻿import { Router } from 'express';
-import { authenticate } from '../middleware/auth';
+﻿import express from 'express';
 import {
   getLeaveRequests,
   createLeaveRequest,
-  updateLeaveRequestStatus,
+  updateLeaveRequest,
   deleteLeaveRequest,
+  approveLeaveRequest,
+  rejectLeaveRequest,
 } from '../controllers/leaveRequestController';
+import { authenticate } from '../middleware/auth';
 
-const router = Router();
-router.use(authenticate);
+const router = express.Router();
 
-router.get('/', getLeaveRequests);
-router.post('/', createLeaveRequest);
-router.patch('/:id/status', updateLeaveRequestStatus);
-router.delete('/:id', deleteLeaveRequest);
+router.get('/', authenticate, getLeaveRequests);
+router.post('/', authenticate, createLeaveRequest);
+router.put('/:id', authenticate, updateLeaveRequest);
+router.delete('/:id', authenticate, deleteLeaveRequest);
+router.post('/:id/approve', authenticate, approveLeaveRequest);
+router.post('/:id/reject', authenticate, rejectLeaveRequest);
 
 export default router;

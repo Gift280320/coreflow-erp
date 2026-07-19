@@ -1,149 +1,186 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from '../lib/axios';
+import api from '../lib/axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent } from '../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Label } from '../components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-import { Label } from '../components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
+import { Card, CardContent } from '../components/ui/card';
 import { Pencil, Trash2, Plus, Search } from 'lucide-react';
 
-const KENYAN_LEAVE_TYPES = [
-  { name: 'Annual Leave', description: 'Statutory annual leave (21 working days)', daysPerYear: 21 },
-  { name: 'Sick Leave', description: 'Statutory sick leave (7 days full pay, 7 days half pay)', daysPerYear: 14 },
-  { name: 'Maternity Leave', description: 'Statutory maternity leave (90 days)', daysPerYear: 90 },
-  { name: 'Paternity Leave', description: 'Statutory paternity leave (14 days)', daysPerYear: 14 },
-  { name: 'Compassionate Leave', description: 'Statutory compassionate leave (5 days)', daysPerYear: 5 },
-  { name: 'Study Leave', description: 'Study leave (varies, default 15 days)', daysPerYear: 15 },
-  { name: 'Compensatory Leave', description: 'Compensatory time off (varies)', daysPerYear: 10 },
-];
+interface LeaveType {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  daysAllowed: number;
+  isActive: boolean;
+}
 
 export default function LeaveTypes() {
-  const [search, setSearch] = useState('');
-  const [selectedType, setSelectedType] = useState<any>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [error, setError] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState('');
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingLeaveType, setEditingLeaveType] = useState<LeaveType | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    description: '',
+    daysAllowed: 30,
+    isActive: true,
+  });
+  const [error, setError] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data: leaveTypes, isLoading } = useQuery({
     queryKey: ['leave-types', search],
     queryFn: async () => {
-      const res = await axios.get('/api/leave-types');
-      let types = res.data;
-      if (search) {
-        types = types.filter((t: any) => t.name.toLowerCase().includes(search.toLowerCase()));
-      }
-      return types;
+      const res = await api.get('/api/leave-types');
+      return res.data;
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => axios.delete(`/api/leave-types/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leave-types'] }),
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: (data: any) => {
-      if (data.id) return axios.put(`/api/leave-types/${data.id}`, data);
-      return axios.post('/api/leave-types', data);
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || 'Save failed');
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await api.post('/api/leave-types', data);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-types'] });
       setIsDialogOpen(false);
-      setSelectedType(null);
-      setSelectedPreset('');
+      resetForm();
       setError('');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Failed to save leave type');
     },
   });
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure?')) deleteMutation.mutate(id);
-  };
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await api.put(`/api/leave-types/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave-types'] });
+      setIsDialogOpen(false);
+      resetForm();
+      setError('');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Failed to update leave type');
+    },
+  });
 
-  const handleEdit = (type: any) => {
-    setSelectedType(type);
-    setSelectedPreset('');
-    setIsDialogOpen(true);
-    setError('');
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/leave-types/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave-types'] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error || 'Failed to delete leave type');
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      code: '',
+      description: '',
+      daysAllowed: 30,
+      isActive: true,
+    });
+    setEditingLeaveType(null);
   };
 
   const handleCreate = () => {
-    setSelectedType({});
-    setSelectedPreset('');
+    resetForm();
     setIsDialogOpen(true);
     setError('');
   };
 
-  const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    setSelectedPreset(val);
-    if (val) {
-      const preset = KENYAN_LEAVE_TYPES.find(t => t.name === val);
-      if (preset) {
-        setSelectedType({
-          ...selectedType,
-          name: preset.name,
-          description: preset.description,
-          daysPerYear: preset.daysPerYear,
-        });
-      }
-    } else {
-      // Clear fields if "custom" selected
-      setSelectedType({
-        ...selectedType,
-        name: '',
-        description: '',
-        daysPerYear: 0,
-      });
-    }
+  const handleEdit = (leaveType: LeaveType) => {
+    setEditingLeaveType(leaveType);
+    setFormData({
+      name: leaveType.name,
+      code: leaveType.code,
+      description: leaveType.description || '',
+      daysAllowed: leaveType.daysAllowed,
+      isActive: leaveType.isActive,
+    });
+    setIsDialogOpen(true);
+    setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const data = {
-      id: selectedType?.id,
-      name: form.name.value,
-      description: form.description.value || null,
-      daysPerYear: parseFloat(form.daysPerYear.value),
-      isActive: form.isActive.value === 'true',
+    setError('');
+    const payload = {
+      name: formData.name,
+      code: formData.code,
+      description: formData.description || null,
+      daysAllowed: parseInt(formData.daysAllowed.toString()),
+      isActive: formData.isActive,
     };
-    saveMutation.mutate(data);
+
+    if (editingLeaveType) {
+      updateMutation.mutate({ id: editingLeaveType.id, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
   };
 
-  // Sync form fields with selectedType when it changes
-  useEffect(() => {
-    if (!selectedType) {
-      setSelectedPreset('');
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this leave type?')) {
+      deleteMutation.mutate(id);
     }
-  }, [selectedType]);
+  };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
+
+  const filteredLeaveTypes = leaveTypes?.filter((lt: LeaveType) =>
+    lt.name.toLowerCase().includes(search.toLowerCase()) ||
+    lt.code.toLowerCase().includes(search.toLowerCase())
+  ) || [];
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Leave Management</h1>
-        <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> Add Leave Type</Button>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Leave Types</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Manage leave type configurations</p>
+        </div>
+        <Button onClick={handleCreate}>
+          <Plus className="w-4 h-4 mr-2" /> Add Leave Type
+        </Button>
       </div>
 
-      <div className="mb-4">
-        <Input
-          placeholder="Search leave types..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="Search leave types..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       <Card>
@@ -152,77 +189,140 @@ export default function LeaveTypes() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Days per Year</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Days Allowed</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.map((type: any) => (
-                <TableRow key={type.id}>
-                  <TableCell>{type.name}</TableCell>
-                  <TableCell>{type.description || '-'}</TableCell>
-                  <TableCell>{type.daysPerYear}</TableCell>
-                  <TableCell>{type.isActive ? 'Active' : 'Inactive'}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(type)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(type.id)}>
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
+              {filteredLeaveTypes.map((leaveType: LeaveType) => (
+                <TableRow key={leaveType.id}>
+                  <TableCell className="font-medium">{leaveType.name}</TableCell>
+                  <TableCell>{leaveType.code}</TableCell>
+                  <TableCell>{leaveType.daysAllowed}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      leaveType.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+                    }`}>
+                      {leaveType.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEdit(leaveType)}
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(leaveType.id)}
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredLeaveTypes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                    No leave types found
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{selectedType?.id ? 'Edit Leave Type' : 'Create Leave Type'}</DialogTitle>
+            <DialogTitle>{editingLeaveType ? 'Edit Leave Type' : 'Add Leave Type'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input type="hidden" name="id" value={selectedType?.id || ''} />
-            <div>
-              <Label htmlFor="preset">Select Default (Kenyan Labour Law)</Label>
-              <select
-                id="preset"
-                className="w-full border rounded-md px-3 py-2"
-                value={selectedPreset}
-                onChange={handlePresetChange}
-              >
-                <option value="">-- Custom / Manual --</option>
-                {KENYAN_LEAVE_TYPES.map((t) => (
-                  <option key={t.name} value={t.name}>{t.name} ({t.daysPerYear} days)</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">Select a default to pre-fill, or create custom.</p>
-            </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" value={selectedType?.name || ''} onChange={(e) => setSelectedType({ ...selectedType, name: e.target.value })} required />
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
             </div>
-            <div>
+            <div className="space-y-2">
+              <Label htmlFor="code">Code</Label>
+              <Input
+                id="code"
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                required
+                placeholder="e.g., SL, AL, ML"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Input id="description" name="description" value={selectedType?.description || ''} onChange={(e) => setSelectedType({ ...selectedType, description: e.target.value })} />
+              <Input
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
             </div>
-            <div>
-              <Label htmlFor="daysPerYear">Days per Year</Label>
-              <Input id="daysPerYear" name="daysPerYear" type="number" step="0.5" value={selectedType?.daysPerYear || 0} onChange={(e) => setSelectedType({ ...selectedType, daysPerYear: parseFloat(e.target.value) })} required />
+            <div className="space-y-2">
+              <Label htmlFor="daysAllowed">Days Allowed</Label>
+              <Input
+                id="daysAllowed"
+                type="number"
+                value={formData.daysAllowed}
+                onChange={(e) => setFormData({ ...formData, daysAllowed: parseInt(e.target.value) || 0 })}
+                required
+                min="0"
+              />
             </div>
-            <div>
-              <Label htmlFor="isActive">Status</Label>
-              <select id="isActive" name="isActive" value={selectedType?.isActive !== undefined ? String(selectedType.isActive) : 'true'} onChange={(e) => setSelectedType({ ...selectedType, isActive: e.target.value === 'true' })} className="w-full border rounded-md px-3 py-2">
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
+            <div className="flex items-center gap-3">
+              <Label htmlFor="isActive">Active</Label>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                className={`w-12 h-6 rounded-full transition ${
+                  formData.isActive ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-700'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 bg-white rounded-full transition transform ${
+                    formData.isActive ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" disabled={saveMutation.isPending}>{saveMutation.isPending ? 'Saving...' : 'Save'}</Button>
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg">
+                {error}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createMutation.isPending || updateMutation.isPending}
+              >
+                {createMutation.isPending || updateMutation.isPending
+                  ? 'Saving...'
+                  : editingLeaveType
+                  ? 'Update'
+                  : 'Create'}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

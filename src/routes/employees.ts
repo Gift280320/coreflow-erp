@@ -1,20 +1,19 @@
-﻿import { Router } from 'express';
-import { authenticate } from '../middleware/auth';
+﻿import express from 'express';
 import {
   getEmployees,
-  getEmployee,
+  getEmployeeById,
   createEmployee,
   updateEmployee,
   deleteEmployee,
 } from '../controllers/employeeController';
+import { authenticate } from '../middleware/auth';
 
-const router = Router();
-router.use(authenticate);
+const router = express.Router();
 
-router.get('/', getEmployees);
-router.get('/:id', getEmployee);
-router.post('/', createEmployee);
-router.put('/:id', updateEmployee);
-router.delete('/:id', deleteEmployee);
+router.get('/', authenticate, getEmployees);
+router.get('/:id', authenticate, getEmployeeById);
+router.post('/', authenticate, createEmployee);
+router.put('/:id', authenticate, updateEmployee);
+router.delete('/:id', authenticate, deleteEmployee);
 
 export default router;

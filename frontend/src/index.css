@@ -56,3 +56,59 @@
     color: hsl(var(--foreground));
   }
 }
+
+/* STRONGER dark mode fix for select dropdowns */
+.dark select,
+.dark select option,
+.dark select optgroup {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+}
+
+.dark select option:hover,
+.dark select option:checked,
+.dark select option:focus,
+.dark select option:active {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+/* For Firefox */
+.dark select:-moz-focusring {
+  color: #f3f4f6 !important;
+  text-shadow: 0 0 0 #f3f4f6 !important;
+}
+
+/* For Edge/Chrome/Safari */
+.dark select option:checked {
+  background: #2563eb !important;
+  color: white !important;
+}
+
+/* STRONGER dark mode fix for select dropdowns */
+.dark select,
+.dark select option,
+.dark select optgroup {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+}
+
+.dark select option:hover,
+.dark select option:checked,
+.dark select option:focus,
+.dark select option:active {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+/* For Firefox */
+.dark select:-moz-focusring {
+  color: #f3f4f6 !important;
+  text-shadow: 0 0 0 #f3f4f6 !important;
+}
+
+/* For Edge/Chrome/Safari */
+.dark select option:checked {
+  background: #2563eb !important;
+  color: white !important;
+}

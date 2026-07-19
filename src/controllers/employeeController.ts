@@ -5,109 +5,232 @@ const prisma = new PrismaClient();
 
 export const getEmployees = async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 10, departmentId, status, search } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search as string;
+
     const where: any = {};
-    if (departmentId) where.departmentId = departmentId as string;
-    if (status) where.status = status as string;
     if (search) {
       where.OR = [
-        { user: { firstName: { contains: search as string, mode: 'insensitive' } } },
-        { user: { lastName: { contains: search as string, mode: 'insensitive' } } },
-        { jobTitle: { contains: search as string, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { employeeId: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    const [employees, total] = await Promise.all([
+    const [data, total] = await Promise.all([
       prisma.employee.findMany({
         where,
-        include: { user: true, department: true },
         skip,
-        take: Number(limit),
+        take: limit,
         orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
+          department: true,
+          role: true,
+          company: true,
+        },
       }),
       prisma.employee.count({ where }),
     ]);
 
-    res.json({ data: employees, total, page: Number(page), limit: Number(limit) });
+    res.json({ data, total, page, limit });
   } catch (error: any) {
-    console.error('Error fetching employees:', error);
+    console.error('Get employees error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-export const getEmployee = async (req: Request, res: Response) => {
+export const getEmployeeById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const employee = await prisma.employee.findUnique({
       where: { id },
-      include: { user: true, department: true },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        department: true,
+        role: true,
+        company: true,
+      },
     });
-    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
     res.json(employee);
   } catch (error: any) {
-    console.error('Error fetching employee:', error);
+    console.error('Get employee by id error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
 export const createEmployee = async (req: Request, res: Response) => {
   try {
-    const { userId, departmentId, jobTitle, hireDate, salary, status } = req.body;
-    // Validate required fields
-    if (!userId || !departmentId || !jobTitle || !hireDate) {
-      return res.status(400).json({ message: 'Missing required fields: userId, departmentId, jobTitle, hireDate' });
+    const {
+      employeeId,
+      firstName,
+      lastName,
+      email,
+      phone,
+      position,
+      departmentId,
+      roleId,
+      userId,
+      managerId,
+      hireDate,
+      salary,
+      status,
+    } = req.body;
+
+    const user = (req as any).user;
+    const companyId = user?.companyId;
+
+    if (!companyId) {
+      return res.status(400).json({ error: 'Logged-in user has no company assigned' });
     }
-    // Convert empty string salary to null
-    const salaryValue = salary && salary !== '' ? parseFloat(salary) : null;
+
+    if (!employeeId || !firstName || !lastName || !email || !position || !hireDate) {
+      return res.status(400).json({
+        error: 'Missing required fields: employeeId, firstName, lastName, email, position, hireDate are required',
+      });
+    }
+
+    const existing = await prisma.employee.findFirst({
+      where: { OR: [{ employeeId }, { email }] },
+    });
+    if (existing) {
+      return res.status(400).json({
+        error: existing.employeeId === employeeId ? 'Employee ID already exists' : 'Email already exists',
+      });
+    }
+
+    if (userId) {
+      const userExists = await prisma.user.findUnique({ where: { id: userId } });
+      if (!userExists) {
+        return res.status(400).json({ error: 'User not found' });
+      }
+      const existingEmployeeForUser = await prisma.employee.findFirst({ where: { userId } });
+      if (existingEmployeeForUser) {
+        return res.status(400).json({ error: 'This user is already linked to another employee' });
+      }
+    }
+
     const employee = await prisma.employee.create({
       data: {
-        userId,
-        departmentId,
-        jobTitle,
+        employeeId,
+        firstName,
+        lastName,
+        email,
+        phone,
+        position,
+        departmentId: departmentId || null,
+        roleId: roleId || null,
+        userId: userId || null,
+        managerId: managerId || null,
         hireDate: new Date(hireDate),
-        salary: salaryValue,
-        status: status || 'active',
+        salary: salary ? parseFloat(salary) : null,
+        status: status || 'ACTIVE',
+        companyId,
       },
-      include: { user: true, department: true },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        department: true,
+        role: true,
+      },
     });
+
     res.status(201).json(employee);
   } catch (error: any) {
-    console.error('Error creating employee:', error);
-    res.status(500).json({ error: error.message, code: error.code });
+    console.error('Create employee error:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 export const updateEmployee = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { departmentId, jobTitle, hireDate, salary, status } = req.body;
-    const salaryValue = salary && salary !== '' ? parseFloat(salary) : null;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      position,
+      departmentId,
+      roleId,
+      userId,
+      managerId,
+      hireDate,
+      salary,
+      status,
+    } = req.body;
+
+    const existing = await prisma.employee.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    // Validate email uniqueness (if changed)
+    if (email && email !== existing.email) {
+      const emailExists = await prisma.employee.findFirst({ where: { email } });
+      if (emailExists) {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+    }
+
+    // Validate userId uniqueness (if changed)
+    if (userId && userId !== existing.userId) {
+      const userExists = await prisma.user.findUnique({ where: { id: userId } });
+      if (!userExists) {
+        return res.status(400).json({ error: 'User not found' });
+      }
+      const existingEmployeeForUser = await prisma.employee.findFirst({ where: { userId } });
+      if (existingEmployeeForUser) {
+        return res.status(400).json({ error: 'This user is already linked to another employee' });
+      }
+    }
+
     const employee = await prisma.employee.update({
       where: { id },
       data: {
-        departmentId,
-        jobTitle,
-        hireDate: new Date(hireDate),
-        salary: salaryValue,
-        status,
+        firstName,
+        lastName,
+        email,
+        phone,
+        position,
+        departmentId: departmentId || null,
+        roleId: roleId || null,
+        userId: userId || null,
+        managerId: managerId || null,
+        hireDate: hireDate ? new Date(hireDate) : undefined,
+        salary: salary ? parseFloat(salary) : null,
+        status: status || 'ACTIVE',
       },
-      include: { user: true, department: true },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        department: true,
+        role: true,
+      },
     });
+
     res.json(employee);
   } catch (error: any) {
-    console.error('Error updating employee:', error);
-    res.status(500).json({ error: error.message, code: error.code });
+    console.error('Update employee error:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 export const deleteEmployee = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const existing = await prisma.employee.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
     await prisma.employee.delete({ where: { id } });
     res.status(204).send();
   } catch (error: any) {
-    console.error('Error deleting employee:', error);
-    res.status(500).json({ error: error.message, code: error.code });
+    console.error('Delete employee error:', error);
+    res.status(500).json({ error: error.message });
   }
 };

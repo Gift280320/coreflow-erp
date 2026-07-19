@@ -1,18 +1,17 @@
-﻿import { Router } from 'express';
-import { authenticate } from '../middleware/auth';
+﻿import express from 'express';
 import {
   getWarehouses,
   createWarehouse,
   updateWarehouse,
   deleteWarehouse,
 } from '../controllers/warehouseController';
+import { authenticate } from '../middleware/auth';
 
-const router = Router();
-router.use(authenticate);
+const router = express.Router();
 
-router.get('/', getWarehouses);
-router.post('/', createWarehouse);
-router.put('/:id', updateWarehouse);
-router.delete('/:id', deleteWarehouse);
+router.get('/', authenticate, getWarehouses);
+router.post('/', authenticate, createWarehouse);
+router.put('/:id', authenticate, updateWarehouse);
+router.delete('/:id', authenticate, deleteWarehouse);
 
 export default router;

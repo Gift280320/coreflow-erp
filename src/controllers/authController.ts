@@ -44,18 +44,33 @@ export const login = async (req: Request, res: Response) => {
 
 export const getMe = async (req: Request, res: Response) => {
   try {
-    // The user is already attached by the authenticate middleware
-    const user = (req as any).user;
-    if (!user) {
-      console.error("❌ getMe: No user found in request");
+    // Try to get user from token in Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("❌ getMe: No Authorization header");
       return res.status(401).json({ message: "Unauthorized" });
     }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret") as any;
+    console.log("🔍 getMe: decoded userId:", decoded.userId);
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: { role: true },
+    });
+
+    if (!user) {
+      console.error("❌ getMe: User not found");
+      return res.status(401).json({ message: "User not found" });
+    }
+
     console.log("✅ getMe: User found:", user.id);
     const { password: _, ...userData } = user;
     res.json(userData);
   } catch (error: any) {
     console.error("Get me error:", error);
-    res.status(500).json({ message: error.message });
+    res.status(401).json({ message: "Invalid token" });
   }
 };
 

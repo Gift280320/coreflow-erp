@@ -1,41 +1,87 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from '../lib/axios';
+import { useAuth } from '../contexts/AuthContext';
+import api from '../lib/axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent } from '../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Label } from '../components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-import { Label } from '../components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
+import { Card, CardContent } from '../components/ui/card';
 import { Pencil, Trash2, Plus, Search } from 'lucide-react';
 
+interface Employee {
+  id: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  position: string;
+  departmentId?: string;
+  roleId?: string;
+  userId?: string;
+  managerId?: string;
+  hireDate: string;
+  salary?: number;
+  status: string;
+  user?: { id: string; firstName: string; lastName: string; email: string };
+  department?: { id: string; name: string };
+  role?: { id: string; name: string };
+}
+
 export default function Employees() {
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [departmentFilter, setDepartmentFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [error, setError] = useState('');
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [formData, setFormData] = useState({
+    employeeId: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    position: '',
+    departmentId: '',
+    roleId: '',
+    userId: '',
+    managerId: '',
+    hireDate: '',
+    salary: '',
+    status: 'ACTIVE',
+  });
+  const [error, setError] = useState('');
 
   // Fetch employees
-  const { data, isLoading } = useQuery({
-    queryKey: ['employees', page, search, departmentFilter, statusFilter],
+  const { data: employeesData, isLoading } = useQuery({
+    queryKey: ['employees', search],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.append('page', String(page));
-      params.append('limit', '10');
-      if (search) params.append('search', search);
-      if (departmentFilter) params.append('departmentId', departmentFilter);
-      if (statusFilter) params.append('status', statusFilter);
-      const res = await axios.get(`/api/employees?${params.toString()}`);
+      const res = await api.get(`/api/employees?page=1&limit=100&search=${search}`);
       return res.data;
+    },
+  });
+
+  // Fetch users – ensure we handle the response correctly
+  const { data: users } = useQuery({
+    queryKey: ['users-list'],
+    queryFn: async () => {
+      const res = await api.get('/api/users?limit=1000');
+      // If the response is an object with a 'data' property, extract it.
+      // Otherwise, assume it's the array itself.
+      return Array.isArray(res.data) ? res.data : res.data?.data || [];
     },
   });
 
@@ -43,112 +89,166 @@ export default function Employees() {
   const { data: departments } = useQuery({
     queryKey: ['departments-list'],
     queryFn: async () => {
-      const res = await axios.get('/api/departments');
-      return res.data;
+      const res = await api.get('/api/departments');
+      return Array.isArray(res.data) ? res.data : res.data?.data || [];
     },
   });
 
-  // Fetch users for dropdown
-  const { data: users } = useQuery({
-    queryKey: ['users-list'],
+  // Fetch roles for dropdown
+  const { data: roles } = useQuery({
+    queryKey: ['roles-list'],
     queryFn: async () => {
-      const res = await axios.get('/api/users?limit=1000');
-      return res.data.data;
+      const res = await api.get('/api/roles');
+      return Array.isArray(res.data) ? res.data : res.data?.data || [];
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => axios.delete(`/api/employees/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['employees'] }),
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: (data: any) => {
-      if (data.id) return axios.put(`/api/employees/${data.id}`, data);
-      return axios.post('/api/employees', data);
-    },
-    onError: (err: any) => {
-      console.error('Save error:', err);
-      setError(err.response?.data?.message || 'Save failed');
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const payload = {
+        ...data,
+        employeeId: data.employeeId || `EMP-${Date.now()}`,
+      };
+      const res = await api.post('/api/employees', payload);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       setIsDialogOpen(false);
-      setSelectedEmployee(null);
+      resetForm();
       setError('');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Failed to save employee');
     },
   });
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure?')) deleteMutation.mutate(id);
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await api.put(`/api/employees/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setIsDialogOpen(false);
+      resetForm();
+      setError('');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Failed to update employee');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/employees/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error || 'Failed to delete employee');
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      employeeId: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      position: '',
+      departmentId: '',
+      roleId: '',
+      userId: '',
+      managerId: '',
+      hireDate: '',
+      salary: '',
+      status: 'ACTIVE',
+    });
+    setEditingEmployee(null);
   };
 
-  const handleEdit = (employee: any) => {
-    setSelectedEmployee(employee);
+  const handleCreate = () => {
+    resetForm();
+    setFormData(prev => ({ ...prev, employeeId: `EMP-${Date.now()}` }));
     setIsDialogOpen(true);
     setError('');
   };
 
-  const handleCreate = () => {
-    setSelectedEmployee(null);
+  const handleEdit = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setFormData({
+      employeeId: employee.employeeId,
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      email: employee.email,
+      phone: employee.phone || '',
+      position: employee.position,
+      departmentId: employee.departmentId || '',
+      roleId: employee.roleId || '',
+      userId: employee.userId || '',
+      managerId: employee.managerId || '',
+      hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString().split('T')[0] : '',
+      salary: employee.salary?.toString() || '',
+      status: employee.status || 'ACTIVE',
+    });
     setIsDialogOpen(true);
     setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const data = {
-      id: selectedEmployee?.id,
-      userId: form.userId.value,
-      departmentId: form.departmentId.value,
-      jobTitle: form.jobTitle.value,
-      hireDate: form.hireDate.value,
-      salary: form.salary.value ? parseFloat(form.salary.value) : null,
-      status: form.status.value,
+    setError('');
+    const payload = {
+      ...formData,
+      salary: formData.salary ? parseFloat(formData.salary) : null,
+      hireDate: formData.hireDate,
+      status: formData.status || 'ACTIVE',
     };
-    saveMutation.mutate(data);
+
+    if (editingEmployee) {
+      updateMutation.mutate({ id: editingEmployee.id, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this employee?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
+
+  const employees = employeesData?.data || employeesData || [];
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Employees</h1>
-        <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> Add Employee</Button>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Employees</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Manage employee records</p>
+        </div>
+        <Button onClick={handleCreate}>
+          <Plus className="w-4 h-4 mr-2" /> Add Employee
+        </Button>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-4">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
-            placeholder="Search by name or job title..."
+            placeholder="Search employees..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
           />
         </div>
-        <select
-          className="border rounded-md px-3 py-2"
-          value={departmentFilter}
-          onChange={(e) => setDepartmentFilter(e.target.value)}
-        >
-          <option value="">All Departments</option>
-          {departments?.map((dept: any) => (
-            <option key={dept.id} value={dept.id}>{dept.name}</option>
-          ))}
-        </select>
-        <select
-          className="border rounded-md px-3 py-2"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="terminated">Terminated</option>
-        </select>
       </div>
 
       <Card>
@@ -156,119 +256,244 @@ export default function Employees() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee</TableHead>
+                <TableHead>Employee ID</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Position</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Job Title</TableHead>
-                <TableHead>Hire Date</TableHead>
-                <TableHead>Salary</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.data.map((emp: any) => (
-                <TableRow key={emp.id}>
-                  <TableCell>{emp.user?.firstName} {emp.user?.lastName}</TableCell>
-                  <TableCell>{emp.department?.name}</TableCell>
-                  <TableCell>{emp.jobTitle}</TableCell>
-                  <TableCell>{new Date(emp.hireDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{emp.salary ? `$${emp.salary.toFixed(2)}` : '-'}</TableCell>
+              {employees.map((employee: Employee) => (
+                <TableRow key={employee.id}>
+                  <TableCell className="font-medium">{employee.employeeId}</TableCell>
+                  <TableCell>{employee.firstName} {employee.lastName}</TableCell>
+                  <TableCell>{employee.email}</TableCell>
+                  <TableCell>{employee.position}</TableCell>
+                  <TableCell>{employee.department?.name || '-'}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      emp.status === 'active' ? 'bg-green-100 text-green-800' :
-                      emp.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {emp.status}
+                    <span className={`px-2 py-1 text-xs rounded-full ${employee.status === 'ACTIVE' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : employee.status === 'INACTIVE' ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                      {employee.status}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(emp)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(emp.id)}>
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(employee)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(employee.id)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
+              {employees.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                    No employees found
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      <div className="mt-4 flex justify-between">
-        <Button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
-        <span>Page {page} of {Math.ceil(data?.total / 10)}</span>
-        <Button disabled={page >= Math.ceil(data?.total / 10)} onClick={() => setPage(p => p + 1)}>Next</Button>
-      </div>
-
+      {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selectedEmployee ? 'Edit Employee' : 'Create Employee'}</DialogTitle>
+            <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add Employee'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input type="hidden" name="id" value={selectedEmployee?.id || ''} />
-            <div>
-              <Label htmlFor="userId">User (Employee)</Label>
-              <select
-                id="userId"
-                name="userId"
-                defaultValue={selectedEmployee?.userId || ''}
-                className="w-full border rounded-md px-3 py-2"
-              >
-                <option value="">Select a user</option>
-                {users?.map((user: any) => (
-                  <option key={user.id} value={user.id}>
-                    {user.firstName} {user.lastName} ({user.email})
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="employeeId">Employee ID</Label>
+                <Input
+                  id="employeeId"
+                  value={formData.employeeId}
+                  onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                  required
+                  placeholder="EMP-12345"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="PENDING">Pending</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="departmentId">Department</Label>
-              <select
-                id="departmentId"
-                name="departmentId"
-                defaultValue={selectedEmployee?.departmentId || ''}
-                className="w-full border rounded-md px-3 py-2"
-              >
-                <option value="">Select a department</option>
-                {departments?.map((dept: any) => (
-                  <option key={dept.id} value={dept.id}>{dept.name}</option>
-                ))}
-              </select>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  required
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="jobTitle">Job Title</Label>
-              <Input id="jobTitle" name="jobTitle" defaultValue={selectedEmployee?.jobTitle || ''} />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="hireDate">Hire Date</Label>
-              <Input id="hireDate" name="hireDate" type="date" defaultValue={selectedEmployee?.hireDate ? new Date(selectedEmployee.hireDate).toISOString().split('T')[0] : ''} />
+
+            <div className="space-y-2">
+              <Label htmlFor="position">Position</Label>
+              <Input
+                id="position"
+                value={formData.position}
+                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                required
+              />
             </div>
-            <div>
-              <Label htmlFor="salary">Salary (optional)</Label>
-              <Input id="salary" name="salary" type="number" step="0.01" defaultValue={selectedEmployee?.salary || ''} />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <select
+                  id="department"
+                  value={formData.departmentId}
+                  onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+                  className="w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">Select department</option>
+                  {departments?.map((dept: any) => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <select
+                  id="role"
+                  value={formData.roleId}
+                  onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
+                  className="w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">Select role</option>
+                  {roles?.map((role: any) => (
+                    <option key={role.id} value={role.id}>{role.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <select
-                id="status"
-                name="status"
-                defaultValue={selectedEmployee?.status || 'active'}
-                className="w-full border rounded-md px-3 py-2"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="terminated">Terminated</option>
-              </select>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="user">User Account</Label>
+                <select
+                  id="user"
+                  value={formData.userId}
+                  onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                  className="w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">None</option>
+                  {users?.map((u: any) => (
+                    <option key={u.id} value={u.id}>
+                      {u.firstName} {u.lastName} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="manager">Manager</Label>
+                <select
+                  id="manager"
+                  value={formData.managerId}
+                  onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                  className="w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">None</option>
+                  {users?.map((u: any) => (
+                    <option key={u.id} value={u.id}>
+                      {u.firstName} {u.lastName} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? 'Saving...' : 'Save'}
-            </Button>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="hireDate">Hire Date</Label>
+                <Input
+                  id="hireDate"
+                  type="date"
+                  value={formData.hireDate}
+                  onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="salary">Salary (KSh)</Label>
+                <Input
+                  id="salary"
+                  type="number"
+                  value={formData.salary}
+                  onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg">
+                {error}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                {createMutation.isPending || updateMutation.isPending
+                  ? 'Saving...'
+                  : editingEmployee
+                  ? 'Update Employee'
+                  : 'Create Employee'}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
